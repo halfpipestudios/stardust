@@ -10,6 +10,7 @@ static SDMat4 world;
 static SDMat4 view;
 static SDMat4 proj;
 static SDTexture *current_texture;
+static SDVec3 view_pos;
    
 #include "sd_cpu_renderer_utils.inl"
 

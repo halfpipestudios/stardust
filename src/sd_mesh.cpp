@@ -6,6 +6,11 @@
 #include <sd_math.h>
 #include <sd_mesh.h>
 
+struct SDBoneInfo {
+    char name[256];
+    SDMat4 offset;
+};
+
 static SDMat4 ai_mat4_to_sd_mat4(aiMatrix4x4 m) {
     return SDMat4(m.a1, m.a2, m.a3, m.a4,
                   m.b1, m.b2, m.b3, m.b4, 

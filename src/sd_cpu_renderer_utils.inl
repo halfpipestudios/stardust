@@ -98,16 +98,17 @@ static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, f
     {
         transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
     }
-    /*
+    
     SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
     SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
     SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
     SDVec3 ab = b - a;
     SDVec3 ac = c - a;
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 viewDir = sd_mat4_get_col_as_vec3(view, 2);
-    if(sd_vec3_dot(normal, viewDir) <= 0) return;
-    */
+    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
+    SDVec3 camera_ray = camera_origin - a;
+    if(sd_vec3_dot(normal, camera_ray) < 0) return;
+    
     for(int i = 0; i < 3; i++)
     {
         transformVertex[i] = proj * Vec4(transformVertex[i].x, transformVertex[i].y, transformVertex[i].z, 1.0f);
@@ -208,17 +209,15 @@ static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, S
         transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
     }
 
-    // TODO: Fix back face culling (view dir is probably wrong) 
-    /*
     SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
     SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
     SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
     SDVec3 ab = b - a;
     SDVec3 ac = c - a;
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 viewDir = sd_mat4_get_col_as_vec3(view, 2);
-    if(sd_vec3_dot(normal, viewDir) <= 0) return;
-    */
+    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
+    SDVec3 camera_ray = camera_origin - a;
+    if(sd_vec3_dot(normal, camera_ray) < 0) return;
 
     for(int i = 0; i < 3; i++)
     {
@@ -342,6 +341,17 @@ static void DrawTriangleAnim(SDAnimator *animator, SDVertex *vertices, SDMat4& v
     }
 
     // TODO: Fix back face culling (view dir is probably wrong) 
+    
+    SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
+    SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
+    SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
+    SDVec3 ab = b - a;
+    SDVec3 ac = c - a;
+    SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
+    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
+    SDVec3 camera_ray = camera_origin - a;
+    if(sd_vec3_dot(normal, camera_ray) < 0) return;
+    
 
     for(int i = 0; i < 3; i++)
     {

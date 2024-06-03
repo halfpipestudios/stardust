@@ -22,7 +22,7 @@ i32 main() {
 
     sd_animator_play(animator);
 
-    sd_set_view_mat(&sd_mat4_lookat(SDVec3(0, 0, 3), SDVec3(), SDVec3(0, 1, 0)));
+    sd_set_view_mat(&sd_mat4_lookat(SDVec3(0, 0, 5), SDVec3(), SDVec3(0, 1, 0)));
     sd_set_proj_mat(&sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
     
     while(sd_should_close() == false) {
@@ -30,6 +30,7 @@ i32 main() {
 
         static float angle = 0.0f;
         static float speed = 0.050f;
+        static float x_pos = 0.0f;
         if(sd_key_down(SD_KEY_D)) {
             angle += 0.07f;
         }
@@ -42,6 +43,12 @@ i32 main() {
         if(sd_key_down(SD_KEY_S)) {
             speed -= 0.001f;
         }
+        if(sd_key_down(SD_KEY_RIGHT)) {
+            x_pos += 0.1f;
+        }
+        if(sd_key_down(SD_KEY_LEFT)) {
+            x_pos -= 0.1f;
+        }
 
         sd_animator_update(animator, speed);
 
@@ -50,8 +57,7 @@ i32 main() {
         sd_set_texture(warrior_tex);
 
         SDQuat quat = sd_quat_angle_axis(angle, SDVec3(0, 1, 0));
-        sd_set_world_mat(&(sd_mat4_translation( 0, -2, -2) * sd_mat4_scale(2, 2, 2) * sd_quat_to_mat4(quat)));
-
+        sd_set_world_mat(&(sd_mat4_translation( x_pos, -2, -2) * sd_mat4_scale(2, 2, 2) * sd_quat_to_mat4(quat)));
         sd_draw_anim_vertex_buffer(animator, warrior->vbuffer);
 
 
