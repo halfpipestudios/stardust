@@ -12,11 +12,10 @@ i32 main() {
     SDTexture *cool_tex = sd_create_texture(&arena, "../data/cool.png");
     SDTexture *warrior_tex = sd_create_texture(&arena, "../data/warrior.png");
 
-    SDStaticMesh *cube = sd_mesh_create(&arena, "../data/cube.dae");
-    SDStaticMesh *mona = sd_mesh_create(&arena, "../data/mona.dae");
+    SDMesh *cube = sd_mesh_create(&arena, "../data/cube.dae");
+    SDMesh *mona = sd_mesh_create(&arena, "../data/mona.dae");
+    SDMesh *warrior = sd_mesh_create(&arena, "../data/warrior.dae");
 
-
-    SDAnimMesh *warrior = sd_anim_mesh_create(&arena, "../data/warrior.dae");
     SDAnimation *warior_anim = sd_animation_create(&arena, "../data/warrior.dae");
     SDAnimator *animator = sd_animator_create(&arena, warrior, warior_anim);
 
@@ -29,7 +28,7 @@ i32 main() {
         sd_process_events();
 
         static float angle = 0.0f;
-        static float speed = 0.050f;
+        static float speed = 0.033f;
         static float x_pos = 0.0f;
         if(sd_key_down(SD_KEY_D)) {
             angle += 0.07f;
@@ -59,6 +58,11 @@ i32 main() {
         SDQuat quat = sd_quat_angle_axis(angle, SDVec3(0, 1, 0));
         sd_set_world_mat(&(sd_mat4_translation( x_pos, -2, -2) * sd_mat4_scale(2, 2, 2) * sd_quat_to_mat4(quat)));
         sd_draw_anim_vertex_buffer(animator, warrior->vbuffer);
+
+        sd_set_texture(cool_tex);
+
+        sd_set_world_mat(&(sd_quat_to_mat4(quat) * sd_mat4_rotation_x((-90.0f/180.0f) * SD_PI)));
+        sd_draw_vertex_buffer(mona->vbuffer, 1, 1, 1);
 
 
         sd_present();

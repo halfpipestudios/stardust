@@ -147,42 +147,7 @@ inline void sd_bone_update(SDBone *bone, f32 animation_time) {
 }
 
 
-SDStaticMesh *sd_mesh_create(SDArena *arena, const char *path) {
-    Assimp::Importer import;
-    const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
-    if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        SD_FATAL("Error: (Assimp) %s", import.GetErrorString());
-    }
-    aiMesh *mesh = scene->mMeshes[0];
-
-    SDArena *scratch = sd_get_scratch_arena(0);
-
-    u32 vertices_count = mesh->mNumVertices;
-    SDVertex *vertices = sd_arena_push_array(scratch, vertices_count, SDVertex);
-    
-    for(u32 i = 0; i < mesh->mNumVertices; i++) {
-        SDVertex *vertex = vertices + i;
-        vertex->pos.x = mesh->mVertices[i].x;
-        vertex->pos.y = mesh->mVertices[i].y;
-        vertex->pos.z = mesh->mVertices[i].z;
-
-        vertex->nor.x = mesh->mNormals[i].x;
-        vertex->nor.y = mesh->mNormals[i].y;
-        vertex->nor.z = mesh->mNormals[i].z;
-
-        vertex->uvs.x = mesh->mTextureCoords[0][i].x;
-        vertex->uvs.y = mesh->mTextureCoords[0][i].y;
-    }
-
-    SDStaticMesh *staticMesh = sd_arena_push_struct(arena, SDStaticMesh);
-    staticMesh->vbuffer = sd_create_vertex_buffer(arena, vertices, vertices_count);
-
-    sd_arena_clear(scratch);
-    
-    return staticMesh;
-}
-
-SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path) {
+SDMesh *sd_mesh_create(SDArena *arena, const char *path) {
     Assimp::Importer import;
     const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
@@ -235,10 +200,10 @@ SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path) {
         }
     }
 
-    SDAnimMesh *anim_mesh = sd_arena_push_struct(arena, SDAnimMesh);
-    anim_mesh->vbuffer = sd_create_vertex_buffer(arena, vertices, vertices_count);
+    SDMesh *result = sd_arena_push_struct(arena, SDMesh);
+    result->vbuffer = sd_create_vertex_buffer(arena, vertices, vertices_count);
     sd_arena_clear(scratch);
-    return anim_mesh;
+    return result;
 }
 
 static i32 find_bone_info_index(SDBoneInfo *bones, i32 count, const char *name) {
@@ -301,7 +266,7 @@ SDAnimation *sd_animation_create(SDArena *arena, const char *path) {
     return animation;
 }
 
-SDAnimator *sd_animator_create(SDArena *arena, SDAnimMesh *mesh, SDAnimation *animation) {
+SDAnimator *sd_animator_create(SDArena *arena, SDMesh *mesh, SDAnimation *animation) {
     SDAnimator *animator = sd_arena_push_struct(arena, SDAnimator);
     animator->current_time = 0.0f;
     animator->current_animation = animation;

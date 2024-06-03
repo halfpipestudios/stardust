@@ -4,6 +4,7 @@
 
 struct SDArena;
 
+
 struct SDKeyPosition {
     SDVec3 pos;
     f32 time_stamp;
@@ -29,16 +30,11 @@ struct SDBone {
 
     SDMat4 local_transform;
     SDMat4 offset;
-    
+
     i32 id;
 };
 
-struct SDBoneInfo {
-    char name[256];
-    SDMat4 offset;
-};
-
-struct SDStaticMesh {
+struct SDMesh {
     SDVertexBuffer *vbuffer;
 };
 
@@ -52,31 +48,23 @@ struct SDAnimationNode {
 struct SDAnimation {
     f32 duration;
     i32 ticks_per_second;
-    
     SDBone *bones;
     i32 bones_count;
-
     SDAnimationNode root_node;
-};
-
-// CPU base skeletial animation system
-struct SDAnimMesh {
-    SDVertexBuffer *vbuffer;
 };
 
 struct SDAnimator {
     SDMat4 final_bone_matrices[100];
     SDAnimation *current_animation;
-    SDAnimMesh *current_mesh;
+    SDMesh *current_mesh;
     f32 current_time;
     f32 delta_time;
 };
 
-SDStaticMesh *sd_mesh_create(SDArena *arena, const char *path);
-SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path);
+SDMesh *sd_mesh_create(SDArena *arena, const char *path);
 
 SDAnimation *sd_animation_create(SDArena *arena, const char *path);
 
-SDAnimator *sd_animator_create(SDArena *arena, SDAnimMesh *mesh, SDAnimation *animation);
+SDAnimator *sd_animator_create(SDArena *arena, SDMesh *mesh, SDAnimation *animation);
 void sd_animator_update(SDAnimator *animator, float dt);
 void sd_animator_play(SDAnimator *animator);
