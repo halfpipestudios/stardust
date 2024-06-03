@@ -28,15 +28,13 @@ struct SDBone {
     i32 scales_count;
 
     SDMat4 local_transform;
-    char name[256];
-
-    i32 id;
     SDMat4 offset;
+    
+    i32 id;
 };
 
 struct SDBoneInfo {
     char name[256];
-    i32 id;
     SDMat4 offset;
 };
 
@@ -46,8 +44,7 @@ struct SDStaticMesh {
 
 struct SDAnimationNode {
     SDMat4 transformation;
-    char name[256];
-    i32 id;
+    i32 bone_index;
     i32 children_count;
     SDAnimationNode *children;
 };
@@ -65,8 +62,6 @@ struct SDAnimation {
 // CPU base skeletial animation system
 struct SDAnimMesh {
     SDVertexBuffer *vbuffer;
-    SDBoneInfo *bones;
-    i32 bones_count;
 };
 
 struct SDAnimator {
@@ -80,7 +75,7 @@ struct SDAnimator {
 SDStaticMesh *sd_mesh_create(SDArena *arena, const char *path);
 SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path);
 
-SDAnimation *sd_animation_create(SDArena *arena, const char *path, SDAnimMesh *mesh);
+SDAnimation *sd_animation_create(SDArena *arena, const char *path);
 
 SDAnimator *sd_animator_create(SDArena *arena, SDAnimMesh *mesh, SDAnimation *animation);
 void sd_animator_update(SDAnimator *animator, float dt);

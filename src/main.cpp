@@ -17,7 +17,7 @@ i32 main() {
 
 
     SDAnimMesh *warrior = sd_anim_mesh_create(&arena, "../data/warrior.dae");
-    SDAnimation *warior_anim = sd_animation_create(&arena, "../data/warrior.dae", warrior);
+    SDAnimation *warior_anim = sd_animation_create(&arena, "../data/warrior.dae");
     SDAnimator *animator = sd_animator_create(&arena, warrior, warior_anim);
 
     sd_animator_play(animator);
@@ -29,7 +29,7 @@ i32 main() {
         sd_process_events();
 
         static float angle = 0.0f;
-        static float speed = 0.016f;
+        static float speed = 0.050f;
         if(sd_key_down(SD_KEY_D)) {
             angle += 0.07f;
         }
@@ -51,7 +51,7 @@ i32 main() {
 
         SDQuat quat = sd_quat_angle_axis(angle, SDVec3(0, 1, 0));
         sd_set_world_mat(&(sd_mat4_translation( 0, -2, -2) * sd_mat4_scale(2, 2, 2) * sd_quat_to_mat4(quat)));
-        
+
         sd_draw_anim_vertex_buffer(animator, warrior->vbuffer);
 
 

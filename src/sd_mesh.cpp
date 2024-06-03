@@ -6,14 +6,6 @@
 #include <sd_math.h>
 #include <sd_mesh.h>
 
-static SDBoneInfo *find_bone_info(SDBoneInfo *bones, i32 count, const char *name) {
-    for(i32 i = 0; i < count; i++) {
-        SDBoneInfo *bone = bones + i;
-        if(strncmp(bone->name, name, strlen(name)) == 0) return bone;
-    }
-    return nullptr;
-}
-
 static SDMat4 ai_mat4_to_sd_mat4(aiMatrix4x4 m) {
     return SDMat4(m.a1, m.a2, m.a3, m.a4,
                   m.b1, m.b2, m.b3, m.b4, 
@@ -34,10 +26,8 @@ static inline f32 get_scale_factor(f32 last_time_stamp, f32 next_time_stamp, f32
     return scale_factor;
 }
 
-static SDBone sd_bone_create(SDArena *arena, const char *name, i32 id, SDMat4 offset, aiNodeAnim *channel) {
+static SDBone sd_bone_create(SDArena *arena, i32 id, SDMat4 offset, aiNodeAnim *channel) {
     SDBone bone;
-    memcpy(bone.name, name, strlen(name));
-    bone.name[strlen(name)] = 0;
     bone.id = id;
     bone.offset = offset;
     bone.local_transform = SDMat4();
@@ -218,32 +208,9 @@ SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path) {
             vertex->weights[j] = 0.0f;
         }
     }
-
-    SDAnimMesh *anim_mesh = sd_arena_push_struct(arena, SDAnimMesh);
-    anim_mesh->bones = sd_arena_push_array(arena, mesh->mNumBones * 2, SDBoneInfo);
-    anim_mesh->bones_count = 0;
-
+    
     for(i32 bone_index = 0; bone_index < mesh->mNumBones; ++bone_index) {
         
-        i32 bone_id = -1;
-        const char* bone_name = mesh->mBones[bone_index]->mName.C_Str();
-
-        // TODO: this should not have repeted bones
-        SDBoneInfo *bone_info = find_bone_info(anim_mesh->bones, anim_mesh->bones_count, bone_name);
-        if(!bone_info) {
-            
-            SDBoneInfo new_bone_info;
-            memcpy(new_bone_info.name, bone_name, strlen(bone_name));
-            new_bone_info.name[strlen(bone_name)] = 0;
-            new_bone_info.id = anim_mesh->bones_count;
-            new_bone_info.offset = ai_mat4_to_sd_mat4(mesh->mBones[bone_index]->mOffsetMatrix);
-            anim_mesh->bones[anim_mesh->bones_count] = new_bone_info;
-            bone_id = anim_mesh->bones_count;
-            anim_mesh->bones_count++;
-        } else {
-            bone_id = bone_info->id;
-        }
-        SD_ASSERT(bone_id != -1);
         auto weights = mesh->mBones[bone_index]->mWeights;
         i32 weights_count = mesh->mBones[bone_index]->mNumWeights;
 
@@ -256,64 +223,77 @@ SDAnimMesh *sd_anim_mesh_create(SDArena *arena, const char *path) {
             for(i32 i = 0; i < 4; ++i) {
                 if(vertices[vertex_id].bone_id[i] < 0) {
                     vertices[vertex_id].weights[i] = weight;
-                    vertices[vertex_id].bone_id[i] = bone_id;
+                    vertices[vertex_id].bone_id[i] = bone_index;
                     break;
                 }
             }
-
         }
     }
 
+    SDAnimMesh *anim_mesh = sd_arena_push_struct(arena, SDAnimMesh);
     anim_mesh->vbuffer = sd_create_vertex_buffer(arena, vertices, vertices_count);
     sd_arena_clear(scratch);
     return anim_mesh;
 }
 
-static void fill_animation_node(SDArena *arena, SDAnimationNode *dst, aiNode *src) {
-    memcpy(dst->name, src->mName.data, strlen(src->mName.data));
-    dst->name[strlen(src->mName.data)] = 0;
+static i32 find_bone_info_index(SDBoneInfo *bones, i32 count, const char *name) {
+    for(i32 i = 0; i < count; i++) {
+        SDBoneInfo *bone = bones + i;
+        if(strncmp(bone->name, name, strlen(name)) == 0) return i;
+    }
+    return -1;
+}
+
+static void fill_animation_node(SDArena *arena, SDAnimationNode *dst, aiNode *src, SDBoneInfo *bones, i32 count) {
+    dst->bone_index = find_bone_info_index(bones, count, src->mName.data);
     dst->transformation= ai_mat4_to_sd_mat4(src->mTransformation);
     dst->children_count = src->mNumChildren;
     if(dst->children_count > 0) {
         dst->children = sd_arena_push_array(arena, dst->children_count, SDAnimationNode);
         for(i32 i = 0; i < dst->children_count; i++) {
-            fill_animation_node(arena, dst->children + i, src->mChildren[i]);
+            fill_animation_node(arena, dst->children + i, src->mChildren[i], bones, count);
         }
     }
 }
 
-SDAnimation *sd_animation_create(SDArena *arena, const char *path, SDAnimMesh *mesh) {
+SDAnimation *sd_animation_create(SDArena *arena, const char *path) {
     Assimp::Importer import;
     const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate);
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         SD_FATAL("Error: (Assimp) %s", import.GetErrorString());
     }
-    auto ai_animation = scene->mAnimations[0];
+    aiMesh *mesh = scene->mMeshes[0];
+    aiAnimation *ai_animation = scene->mAnimations[0];
 
     SDAnimation *animation = sd_arena_push_struct(arena, SDAnimation);
     animation->duration = ai_animation->mDuration;
     animation->ticks_per_second = (i32)ai_animation->mTicksPerSecond;
 
-    fill_animation_node(arena, &animation->root_node, scene->mRootNode);
+    SDArena *scratch = sd_get_scratch_arena(0);
+    SDBoneInfo *bones_info_array = sd_arena_push_array(arena, mesh->mNumBones, SDBoneInfo);
+
+    for(i32 i = 0; i < mesh->mNumBones; ++i) {
+        SDBoneInfo *bone_info = bones_info_array + i;
+        const char* bone_name = mesh->mBones[i]->mName.C_Str();
+        memcpy(bone_info->name, bone_name, strlen(bone_name));
+        bone_info->name[strlen(bone_name)] = 0;
+        bone_info->offset = ai_mat4_to_sd_mat4(mesh->mBones[i]->mOffsetMatrix);
+    }
+
+    fill_animation_node(arena, &animation->root_node, scene->mRootNode, bones_info_array, mesh->mNumBones);
 
     animation->bones_count = ai_animation->mNumChannels;
     animation->bones = sd_arena_push_array(arena, animation->bones_count, SDBone);
-    for(i32 i = 0; i < ai_animation->mNumChannels; i++) {
-        auto channel = ai_animation->mChannels[i];
-        const char *bone_name = channel->mNodeName.data;
-        animation->bones[i] = sd_bone_create(arena, bone_name, mesh->bones[i].id, mesh->bones[i].offset, channel);
-    }
-    return animation;
-}
 
-static SDBone *find_bone(SDAnimation *animation, const char *name) {
-    for(i32 i = 0; i < animation->bones_count; i++) {
-        SDBone *bone = animation->bones + i;
-        if(strncmp(bone->name, name, strlen(name)) == 0) {
-            return bone;
-        }
+    i32 bones_info_array_count = mesh->mNumBones;
+
+    for(i32 i = 0; i < ai_animation->mNumChannels; i++) {
+        aiNodeAnim *channel = ai_animation->mChannels[i];
+        animation->bones[i] = sd_bone_create(arena, i, bones_info_array[i].offset, channel);
     }
-    return nullptr;
+
+    sd_arena_clear(scratch);
+    return animation;
 }
 
 SDAnimator *sd_animator_create(SDArena *arena, SDAnimMesh *mesh, SDAnimation *animation) {
@@ -332,7 +312,7 @@ static void calculate_bone_transform(SDAnimator *animator, SDAnimationNode *node
 
     SDMat4 node_transform = node->transformation;
 
-    SDBone *bone = find_bone(animation, node->name);
+    SDBone *bone = node->bone_index >= 0 ? animation->bones + node->bone_index : nullptr;
 
     SDMat4 global_transform;
 
