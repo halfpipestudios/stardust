@@ -21,6 +21,7 @@ lib:
 	.\sd_input.cpp \
 	.\sd_software_renderer.cpp \
 	.\sd_mesh.cpp \
+	.\sd_animation.cpp \
 	/Fo../bin/ /Fm../bin/
 	
 	lib \
@@ -31,6 +32,7 @@ lib:
 	../bin/sd_input.obj \
 	../bin/sd_software_renderer.obj \
 	../bin/sd_mesh.obj \
+	../bin/sd_animation.obj \
 	../libs/assimp/bin/assimp-vc143-mt.lib
 	
 	  

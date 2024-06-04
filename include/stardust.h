@@ -4,3 +4,4 @@
 #include <sd_input.h>
 #include <sd_software_renderer.h>
 #include <sd_mesh.h>
+#include <sd_animation.h>

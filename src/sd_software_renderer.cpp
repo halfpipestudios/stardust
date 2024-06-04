@@ -5,6 +5,7 @@
 #include <sd_platform.h>
 #include <sd_memory.h>
 #include <sd_mesh.h>
+#include <sd_animation.h>
 
 static SDMat4 world;
 static SDMat4 view;
@@ -63,11 +64,11 @@ void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b) {
     
 }
 
-void sd_draw_anim_vertex_buffer(SDAnimator *animator, SDVertexBuffer *buffer) {
+void sd_draw_anim_vertex_buffer(SDSkeleton *skeleton, SDVertexBuffer *buffer) {
     SDMat4 view_world = view * world;
     if(current_texture) {
         for(int j = 0; j < buffer->vertices_count; j += 3) {
-            DrawTriangleAnim(animator, buffer->vertices + j, view_world, proj, current_texture, sd_depth_buffer());
+            DrawTriangleAnim(skeleton, buffer->vertices + j, view_world, proj, current_texture, sd_depth_buffer());
         }
     }
 }
