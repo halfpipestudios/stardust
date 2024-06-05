@@ -54,4 +54,6 @@ SDSkeleton *sd_skeleton_create(SDArena *arena, const char *path);
 SDAnimation *sd_animation_create(SDArena *arena, const char *path);
 void sd_skeleton_animate(SDSkeleton *skeleton, SDAnimation *animation, f32 dt);
 void sd_skeleton_interpolate_animations(SDSkeleton *skeleton, SDAnimation *a, SDAnimation *b, f32 t, f32 dt);
-void sd_skeleton_interpolate_4_animations(SDSkeleton *skeleton, SDAnimation *a, SDAnimation *b, SDAnimation *c, SDAnimation *d, f32 in_t, f32 dt);
+void sd_skeleton_interpolate_4_animations(SDSkeleton *skeleton,
+                                          SDAnimation *l, SDAnimation *f, SDAnimation *r, SDAnimation *b, SDAnimation *idle,
+                                          f32 angle, f32 speed, f32 dt);

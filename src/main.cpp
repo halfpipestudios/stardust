@@ -25,7 +25,7 @@ i32 main() {
     while(sd_should_close() == false) {
         sd_process_events();
 
-        static float speed = 0.033f;
+        static f32 anim_speed = 0.033f;
         
         SDVec3 front = SDVec3(0, 0, 1);
         SDVec3 right = SDVec3(1, 0, 0);
@@ -34,18 +34,20 @@ i32 main() {
         velocity.x = sd_get_left_stick_x();
         velocity.z = sd_get_left_stick_y();
 
+        f32 speed = sd_vec3_len(velocity);
+
         f32 angle = atan2(velocity.x, velocity.z) - atan2(front.x, front.z);
         angle = (angle/SD_PI) *180.0f;
-        //SD_INFO("angle: %f", angle);
+
 
         if(sd_key_down(SD_KEY_UP)) {
-            speed += 0.001f;
+            anim_speed += 0.001f;
         }
         if(sd_key_down(SD_KEY_DOWN)) {
-            speed -= 0.001f;
+            anim_speed -= 0.001f;
         }
 
-        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, angle, speed);
+        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, idle, angle, speed, anim_speed);
 
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
