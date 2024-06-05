@@ -67,7 +67,7 @@ static SDBone sd_bone_create(SDArena *arena, i32 id, aiNodeAnim *channel) {
     return bone;
 }
 
-i32 sd_bone_get_pos_index(SDBone *bone, f32 animation_time) {
+static i32 sd_bone_get_pos_index(SDBone *bone, f32 animation_time) {
     for(i32 i = 0; i < bone->positions_count - 1; i++) {
         if(animation_time < bone->positions[i + 1].time_stamp)
             return i;
@@ -76,7 +76,7 @@ i32 sd_bone_get_pos_index(SDBone *bone, f32 animation_time) {
     return 0;
 }
 
-i32 sd_bone_get_rot_index(SDBone *bone, f32 animation_time) {
+static i32 sd_bone_get_rot_index(SDBone *bone, f32 animation_time) {
     for(i32 i = 0; i < bone->rotations_count - 1; i++) {
         if(animation_time < bone->rotations[i + 1].time_stamp)
             return i;
@@ -85,7 +85,7 @@ i32 sd_bone_get_rot_index(SDBone *bone, f32 animation_time) {
     return 0;
 }
 
-i32 sd_bone_get_scale_index(SDBone *bone, f32 animation_time) {
+static i32 sd_bone_get_scale_index(SDBone *bone, f32 animation_time) {
     for(i32 i = 0; i < bone->scales_count - 1; i++) {
         if(animation_time < bone->scales[i + 1].time_stamp)
             return i;
@@ -94,10 +94,10 @@ i32 sd_bone_get_scale_index(SDBone *bone, f32 animation_time) {
     return 0; 
 }
 
-SDMat4 sd_bone_interpolate_pos(SDBone *bone, f32 animation_time) {
+static SDVec3 sd_bone_interpolate_pos(SDBone *bone, f32 animation_time) {
     if(bone->positions_count == 1) {
         SDVec3 pos = bone->positions[0].pos;
-        return sd_mat4_translation(pos.x, pos.y, pos.z);
+        return pos;
     }
     i32 index0 = sd_bone_get_pos_index(bone, animation_time);
     i32 index1 = index0 + 1;
@@ -105,13 +105,13 @@ SDMat4 sd_bone_interpolate_pos(SDBone *bone, f32 animation_time) {
                                         bone->positions[index1].time_stamp,
                                         animation_time);
     SDVec3 pos = sd_vec3_lerp(bone->positions[index0].pos, bone->positions[index1].pos, scale_factor);
-    return sd_mat4_translation(pos.x, pos.y, pos.z);
+    return pos;
 }
 
-SDMat4 sd_bone_interpolate_rot(SDBone *bone, f32 animation_time) {
+static SDQuat sd_bone_interpolate_rot(SDBone *bone, f32 animation_time) {
    if(bone->rotations_count == 1) {
         SDQuat rot = sd_quat_normalized(bone->rotations[0].rot);
-        return sd_quat_to_mat4(rot);
+        return rot;
    }
    i32 index0 = sd_bone_get_rot_index(bone, animation_time);
    i32 index1 = index0 + 1;
@@ -120,13 +120,13 @@ SDMat4 sd_bone_interpolate_rot(SDBone *bone, f32 animation_time) {
                                        animation_time);
     SDQuat rot = sd_quat_slerp(bone->rotations[index0].rot, bone->rotations[index1].rot, scale_factor);
     rot = sd_quat_normalized(rot);
-    return sd_quat_to_mat4(rot);
+    return rot;
 }
 
-SDMat4 sd_bone_interpolate_scale(SDBone *bone, f32 animation_time) {
+static SDVec3 sd_bone_interpolate_scale(SDBone *bone, f32 animation_time) {
     if(bone->scales_count == 1) {
         SDVec3 scale = bone->scales[0].scale;
-        return sd_mat4_translation(scale.x, scale.y, scale.z);
+        return scale;
     }
     i32 index0 = sd_bone_get_scale_index(bone, animation_time);
     i32 index1 = index0 + 1;
@@ -134,14 +134,33 @@ SDMat4 sd_bone_interpolate_scale(SDBone *bone, f32 animation_time) {
                                         bone->scales[index1].time_stamp,
                                         animation_time);
     SDVec3 scale = sd_vec3_lerp(bone->scales[index0].scale, bone->scales[index1].scale, scale_factor);
-    return sd_mat4_translation(scale.x, scale.y, scale.z); 
+    return scale; 
 }
 
-inline void sd_bone_update(SDBone *bone, f32 animation_time) {
-    SDMat4 translation = sd_bone_interpolate_pos(bone, animation_time);
-    SDMat4 rotation = sd_bone_interpolate_rot(bone, animation_time);
-    SDMat4 scale = sd_bone_interpolate_scale(bone, animation_time);
+static inline void sd_bone_update(SDBone *bone, f32 animation_time) {
+    SDMat4 translation = sd_mat4_translation(sd_bone_interpolate_pos(bone, animation_time));
+    SDMat4 rotation    = sd_quat_to_mat4(sd_bone_interpolate_rot(bone, animation_time));
+    SDMat4 scale       = sd_mat4_scale(sd_bone_interpolate_scale(bone, animation_time));
     bone->local_transform = translation * rotation * scale;
+}
+
+static inline void sd_bones_interpolate(SDBone *a, SDBone *b, f32 t, f32 *animation_time) {
+    
+    SDVec3 a_trans = sd_bone_interpolate_pos(a, animation_time[0]);
+    SDQuat a_rot   = sd_bone_interpolate_rot(a, animation_time[0]);
+    SDVec3 a_scale = sd_bone_interpolate_scale(a, animation_time[0]);
+
+    SDVec3 b_trans = sd_bone_interpolate_pos(b, animation_time[1]);
+    SDQuat b_rot   = sd_bone_interpolate_rot(b, animation_time[1]);
+    SDVec3 b_scale = sd_bone_interpolate_scale(b, animation_time[1]);
+
+    SDMat4 translation = sd_mat4_translation(sd_vec3_lerp(a_trans, b_trans, t));
+    SDMat4 rotation    = sd_quat_to_mat4(sd_quat_slerp(a_rot, b_rot, t));
+    SDMat4 scale       = sd_mat4_scale(sd_vec3_lerp(a_scale, b_scale, t));
+
+    SDMat4 result = translation * rotation * scale;
+    a->local_transform = result;
+    b->local_transform = result;
 }
 
 //==========================================================================================
@@ -207,8 +226,6 @@ SDSkeleton *sd_skeleton_create(SDArena *arena, const char *path) {
     aiMesh *mesh = scene->mMeshes[0];
 
     SDSkeleton *skeleton = sd_arena_push_struct(arena, SDSkeleton);
-    skeleton->current_time = 0.0f;
-    skeleton->delta_time = 0.0f;
 
     fill_skeleton_node(arena, &skeleton->root_node, scene->mRootNode, mesh->mBones, mesh->mNumBones);
 
@@ -225,7 +242,7 @@ static void calculate_bone_transform(SDSkeleton *skeleton, SDAnimation *animatio
     SDBone *bone = node->bone_index >= 0 ? animation->bones + node->bone_index : nullptr;
     SDMat4 global_transform;
     if(bone) {
-        sd_bone_update(bone, skeleton->current_time);
+        sd_bone_update(bone, skeleton->current_time[0]);
         node_transform = bone->local_transform;
         global_transform = parent_transform * node_transform;
         skeleton->final_bone_matrices[bone->id] = global_transform * node->inv_bind_pose;
@@ -240,8 +257,85 @@ static void calculate_bone_transform(SDSkeleton *skeleton, SDAnimation *animatio
 
 void sd_skeleton_animate(SDSkeleton *skeleton, SDAnimation *animation, f32 dt) {
     skeleton->delta_time = dt;
-    skeleton->current_time += animation->ticks_per_second * dt;
-    skeleton->current_time = fmod(skeleton->current_time, animation->duration);
+    skeleton->current_time[0] += animation->ticks_per_second * dt;
+    skeleton->current_time[0] = fmod(skeleton->current_time[0], animation->duration);
     calculate_bone_transform(skeleton, animation, &skeleton->root_node, SDMat4());
 }
 
+static void calculate_bone_transform(SDSkeleton *skeleton, SDAnimation *a, SDAnimation *b, f32 t, SDSkeletonNode *node, SDMat4 parent_transform) {
+    SDMat4 node_transform = node->transformation;
+    SDBone *a_bone = node->bone_index >= 0 ? a->bones + node->bone_index : nullptr;
+    SDBone *b_bone = node->bone_index >= 0 ? b->bones + node->bone_index : nullptr;
+    SDMat4 global_transform;
+    if(a_bone && b_bone) {
+        sd_bones_interpolate(a_bone, b_bone, t, skeleton->current_time);
+        node_transform = a_bone->local_transform;
+        global_transform = parent_transform * node_transform;
+        skeleton->final_bone_matrices[a_bone->id] = global_transform * node->inv_bind_pose;
+    } else {
+        global_transform = parent_transform * node_transform;
+    }
+
+    for(i32 i = 0; i < node->children_count; i++) {
+        calculate_bone_transform(skeleton, a, b, t, node->children + i, global_transform);
+    }
+}
+
+void sd_skeleton_interpolate_animations(SDSkeleton *skeleton, SDAnimation *a, SDAnimation *b, f32 t, f32 dt) {
+    skeleton->delta_time = dt;
+
+    skeleton->current_time[0] += a->ticks_per_second * dt;
+    skeleton->current_time[0] = fmod(skeleton->current_time[0], a->duration);
+
+    skeleton->current_time[1] += b->ticks_per_second * dt;
+    skeleton->current_time[1] = fmod(skeleton->current_time[1], b->duration);
+
+    calculate_bone_transform(skeleton, a, b, t, &skeleton->root_node, SDMat4());
+}
+
+f32 lerp(f32 a, f32 b, f32 t) {
+    return (1.0f - t) * a + b * t;
+}
+
+f32 inv_lerp(f32 a, f32 b, f32 v) {
+    return (v - a) / (b - a);
+}
+
+f32 remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
+    f32 t = inv_lerp(i_min, i_max, v);
+    return lerp(o_min, o_max, t);
+}
+
+// in_t = -1 -> 0 -> 1
+void sd_skeleton_interpolate_4_animations(SDSkeleton *skeleton, SDAnimation *l, SDAnimation *f, SDAnimation *r, SDAnimation *b, f32 in_t, f32 dt) {
+    skeleton->delta_time = dt;
+    if(in_t < -90) {
+        f32 t = remap(-180, -90, 0, 1, in_t);
+        skeleton->current_time[0] += b->ticks_per_second * dt;
+        skeleton->current_time[0] = fmod(skeleton->current_time[0], b->duration);
+        skeleton->current_time[1] += l->ticks_per_second * dt;
+        skeleton->current_time[1] = fmod(skeleton->current_time[1], l->duration);
+        calculate_bone_transform(skeleton, b, l, t, &skeleton->root_node, SDMat4());
+    } else if(in_t < 0) {
+        f32 t = remap(-90, 0, 0, 1, in_t);
+        skeleton->current_time[0] += l->ticks_per_second * dt;
+        skeleton->current_time[0] = fmod(skeleton->current_time[0], l->duration);
+        skeleton->current_time[1] += f->ticks_per_second * dt;
+        skeleton->current_time[1] = fmod(skeleton->current_time[1], f->duration);
+        calculate_bone_transform(skeleton, l, f, t, &skeleton->root_node, SDMat4());
+    } else if(in_t < 90) {
+        f32 t = remap(0, 90, 0, 1, in_t);
+        skeleton->current_time[0] += f->ticks_per_second * dt;
+        skeleton->current_time[0] = fmod(skeleton->current_time[0], f->duration);
+        skeleton->current_time[1] += r->ticks_per_second * dt;
+        skeleton->current_time[1] = fmod(skeleton->current_time[1], r->duration);
+        calculate_bone_transform(skeleton, f, r, t, &skeleton->root_node, SDMat4());
+    } else if(in_t <= 180) {
+        f32 t = remap(90, 180, 0, 1, in_t);
+        skeleton->current_time[0] += r->ticks_per_second * dt;
+        skeleton->current_time[0] = fmod(skeleton->current_time[0], r->duration);
+        skeleton->current_time[1] += b->ticks_per_second * dt;
+        skeleton->current_time[1] = fmod(skeleton->current_time[1], b->duration);
+        calculate_bone_transform(skeleton, r, b, t, &skeleton->root_node, SDMat4());
+    }
+}

@@ -238,8 +238,6 @@
     }
 
 
-
-
     float sd_vec3_dot(const SDVec3& lhs, const SDVec3& rhs)
     {
         return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z);
@@ -299,6 +297,19 @@
         SDVec3 result = a * (1.0f - t) + b * t;
         return result;
     }
+
+    f32 sd_vec3_angle(SDVec3 a, SDVec3 b) {
+        f32 a_len_sq = sd_vec3_len_sq(a);
+        f32 b_len_sq = sd_vec3_len_sq(b);
+        if(a_len_sq < VEC_EPSILON || b_len_sq < VEC_EPSILON) {
+            return 0.0f;
+        }
+
+        f32 dot = sd_vec3_dot(a, b);
+        f32 len = std::sqrtf(a_len_sq) * std::sqrtf(b_len_sq);
+        return std::asinf(dot / len);
+    }
+
 
 
 
@@ -608,6 +619,29 @@
             x, 0, 0, 0,
             0, y, 0, 0,
             0, 0, z, 0,
+            0, 0, 0, 1
+        );
+        return result;
+    }
+    
+
+    SDMat4 sd_mat4_translation(SDVec3 v)
+    {
+        SDMat4 result = SDMat4(
+            1, 0, 0, v.x,
+            0, 1, 0, v.y,
+            0, 0, 1, v.z,
+            0, 0, 0, 1
+        );
+        return result;
+    }
+
+    SDMat4 sd_mat4_scale(SDVec3 v)
+    {
+        SDMat4 result = SDMat4(
+            v.x, 0, 0, 0,
+            0, v.y, 0, 0,
+            0, 0, v.z, 0,
             0, 0, 0, 1
         );
         return result;

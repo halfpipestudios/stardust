@@ -322,7 +322,7 @@ static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, S
 
 }
 
-static void DrawTriangleAnim(SDSkeleton *skeleton, SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture, float *depthBuffer) {
+static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture, float *depthBuffer) {
     Vec4 transformVertex[3];
     for(int i = 0; i < 3; i++)
     {
@@ -333,7 +333,7 @@ static void DrawTriangleAnim(SDSkeleton *skeleton, SDVertex *vertices, SDMat4& v
                 total_position = Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
                 break;
             }
-            Vec4 local_position = skeleton->final_bone_matrices[vertices[i].bone_id[j]] * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
+            Vec4 local_position = pallete[vertices[i].bone_id[j]] * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
             total_position += local_position * vertices[i].weights[j];
         }
 

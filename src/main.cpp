@@ -19,33 +19,24 @@ i32 main() {
     SDAnimation *walk_left = sd_animation_create(&arena, "../data/walk_left.dae");
     SDAnimation *walk_right = sd_animation_create(&arena, "../data/walk_right.dae");
 
-    sd_set_view_mat(&sd_mat4_lookat(SDVec3(0, 0, 5), SDVec3(), SDVec3(0, 1, 0)));
+    sd_set_view_mat(&sd_mat4_lookat(SDVec3(0, 5, -7), SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
     sd_set_proj_mat(&sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
     
     while(sd_should_close() == false) {
         sd_process_events();
 
-        static float angle = 0.0f;
         static float speed = 0.033f;
-        static float x_pos = 0.0f;
+        
+        SDVec3 front = SDVec3(0, 0, 1);
+        SDVec3 right = SDVec3(1, 0, 0);
 
-        if(sd_key_down(SD_KEY_D)) {
-            sd_skeleton_animate(warior_skeleton, walk_right, speed);
-        }
-        else if(sd_key_down(SD_KEY_A)) {
-            sd_skeleton_animate(warior_skeleton, walk_left, speed);
-        }
-        else if(sd_key_down(SD_KEY_W)) {
-            sd_skeleton_animate(warior_skeleton, walk_front, speed);
-        }
-        else if(sd_key_down(SD_KEY_S)) {
-            sd_skeleton_animate(warior_skeleton, walk_back, speed);
-        }
-        else {
-            sd_skeleton_animate(warior_skeleton, idle, speed);
-        }
+        SDVec3 velocity = SDVec3(0, 0, 0);
+        velocity.x = sd_get_left_stick_x();
+        velocity.z = sd_get_left_stick_y();
 
-
+        f32 angle = atan2(velocity.x, velocity.z) - atan2(front.x, front.z);
+        angle = (angle/SD_PI) *180.0f;
+        SD_INFO("angle: %f", angle);
 
         if(sd_key_down(SD_KEY_UP)) {
             speed += 0.001f;
@@ -53,19 +44,14 @@ i32 main() {
         if(sd_key_down(SD_KEY_DOWN)) {
             speed -= 0.001f;
         }
-        if(sd_key_down(SD_KEY_RIGHT)) {
-            angle += 0.1f;
-        }
-        if(sd_key_down(SD_KEY_LEFT)) {
-            angle -= 0.1f;
-        }
 
+        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, angle, speed);
+        
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
         sd_set_texture(warrior_tex);
-        SDQuat quat = sd_quat_angle_axis(angle, SDVec3(0, 1, 0));
-        sd_set_world_mat(&(sd_mat4_translation( x_pos, -2, -2) * sd_mat4_scale(3, 3, 3) * sd_quat_to_mat4(quat)));
-        sd_draw_anim_vertex_buffer(warior_skeleton, warrior->vbuffer);
+        sd_set_world_mat(&(sd_mat4_scale(3, 3, 3)));
+        sd_draw_anim_vertex_buffer(warior_skeleton->final_bone_matrices, warrior->vbuffer);
 
         sd_present();
         sd_store_input_for_next_frame();

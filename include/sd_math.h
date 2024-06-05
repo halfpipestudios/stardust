@@ -92,6 +92,7 @@ float sd_vec3_len(const SDVec3& v);
 SDVec3 sd_vec3_normalized(const SDVec3& v);
 void sd_vec3_normalize(SDVec3& v);
 SDVec3 sd_vec3_lerp(SDVec3 a, SDVec3 b, f32 t);
+f32 sd_vec3_angle(SDVec3 a, SDVec3 b);
 
 struct Vec4
 {
@@ -209,6 +210,9 @@ SDMat4 sd_mat4_rotation_x(float angle);
 SDMat4 sd_mat4_rotation_y(float angle);
 SDMat4 sd_mat4_rotation_z(float angle);
 SDMat4 sd_mat4_scale(float x, float y, float z);
+
+SDMat4 sd_mat4_translation(SDVec3 v);
+SDMat4 sd_mat4_scale(SDVec3 v);
 
 SDMat4 sd_mat4_lookat(SDVec3 pos, SDVec3 tar, SDVec3 up);
 SDMat4 sd_mat4_frustum(float l, float r, float b, float t, float n, float f);

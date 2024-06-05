@@ -6,7 +6,6 @@
 #define MAX_BONE_INFLUENCE 4
 
 struct SDArena;
-struct SDSkeleton;
 
 struct SDVertex {
     SDVec3 pos;
@@ -36,4 +35,4 @@ void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b);
 SDTexture *sd_create_texture(SDArena *arena, char *path);
 void sd_set_texture(SDTexture *texture);
 
-void sd_draw_anim_vertex_buffer(SDSkeleton *skeleton, SDVertexBuffer *buffer);
+void sd_draw_anim_vertex_buffer(SDMat4 *pallete, SDVertexBuffer *buffer);

@@ -3,6 +3,7 @@
 #define WIN32_EXTRA_LEAN
 
 #include <windows.h>
+#include <xinput.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,7 +12,21 @@
 
 #pragma comment(lib, "User32.lib")
 #pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "Xinput.lib")
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+static WORD XInputButtons[] = {
+    XINPUT_GAMEPAD_DPAD_UP,
+    XINPUT_GAMEPAD_DPAD_DOWN,
+    XINPUT_GAMEPAD_DPAD_LEFT,
+    XINPUT_GAMEPAD_DPAD_RIGHT,
+    XINPUT_GAMEPAD_START,
+    XINPUT_GAMEPAD_BACK,
+    XINPUT_GAMEPAD_A,
+    XINPUT_GAMEPAD_B,
+    XINPUT_GAMEPAD_X,
+    XINPUT_GAMEPAD_Y
+};
 
 static HWND window;
 static u32 window_width;
@@ -115,11 +130,35 @@ void sd_present() {
     DeleteDC(back_buffer_dc);
 }
 
+static f32 sd_process_xinput_stick(SHORT value, i32 deadZoneValue) {
+    f32 result = 0;
+    if(value < -deadZoneValue) {
+        result = (f32)(value + deadZoneValue) / (32768.0f - deadZoneValue);
+    }
+    else if(value > deadZoneValue) {
+        result = (f32)(value - deadZoneValue) / (32767.0f - deadZoneValue);
+    }
+    return result;
+}
+
+
 void sd_process_events() {
     MSG msg;
     while(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
+    }
+
+    XINPUT_STATE state = {};
+    if(XInputGetState(0, &state) == ERROR_SUCCESS)
+    {
+        XINPUT_GAMEPAD *pad = &state.Gamepad;
+        f32 lx =  sd_process_xinput_stick(pad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        f32 ly =  sd_process_xinput_stick(pad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        f32 rx = sd_process_xinput_stick(pad->sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        f32 ry = sd_process_xinput_stick(pad->sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        sd_set_left_stick(lx, ly);
+        sd_set_right_stick(rx, ry);
     }
 }
 

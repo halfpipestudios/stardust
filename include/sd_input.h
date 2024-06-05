@@ -66,6 +66,11 @@
 struct SDInput {
     bool keys[256];
     bool mouse_buttons[3];
+
+    f32 left_stick_x;
+    f32 left_stick_y;
+    f32 right_stick_x;
+    f32 right_stick_y;
 };
 
 void sd_set_key(u32 key, bool value);
@@ -76,3 +81,11 @@ bool sd_key_just_down(u32 keycode);
 bool sd_key_up(u32 keycode);
 bool sd_key_just_up(u32 keycode);
 void sd_store_input_for_next_frame();
+
+void sd_set_left_stick(f32 x, f32 y);
+void sd_set_right_stick(f32 x, f32 y);
+
+f32 sd_get_left_stick_x();
+f32 sd_get_left_stick_y();
+f32 sd_get_right_stick_x();
+f32 sd_get_right_stick_y();
