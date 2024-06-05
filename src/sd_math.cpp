@@ -1,5 +1,18 @@
 #include <sd_math.h>
 
+f32 sd_lerp(f32 a, f32 b, f32 t) {
+    return (1.0f - t) * a + b * t;
+}
+
+f32 sd_inv_lerp(f32 a, f32 b, f32 v) {
+    return (v - a) / (b - a);
+}
+
+f32 sd_remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
+    f32 t = sd_inv_lerp(i_min, i_max, v);
+    return sd_lerp(o_min, o_max, t);
+}
+
 //==================================================================
 // Vector 2
 //==================================================================

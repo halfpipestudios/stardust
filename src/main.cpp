@@ -36,7 +36,7 @@ i32 main() {
 
         f32 angle = atan2(velocity.x, velocity.z) - atan2(front.x, front.z);
         angle = (angle/SD_PI) *180.0f;
-        SD_INFO("angle: %f", angle);
+        //SD_INFO("angle: %f", angle);
 
         if(sd_key_down(SD_KEY_UP)) {
             speed += 0.001f;
@@ -46,7 +46,7 @@ i32 main() {
         }
 
         sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, angle, speed);
-        
+
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
         sd_set_texture(warrior_tex);

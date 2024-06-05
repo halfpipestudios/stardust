@@ -293,45 +293,32 @@ void sd_skeleton_interpolate_animations(SDSkeleton *skeleton, SDAnimation *a, SD
     calculate_bone_transform(skeleton, a, b, t, &skeleton->root_node, SDMat4());
 }
 
-f32 lerp(f32 a, f32 b, f32 t) {
-    return (1.0f - t) * a + b * t;
-}
-
-f32 inv_lerp(f32 a, f32 b, f32 v) {
-    return (v - a) / (b - a);
-}
-
-f32 remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
-    f32 t = inv_lerp(i_min, i_max, v);
-    return lerp(o_min, o_max, t);
-}
-
 // in_t = -1 -> 0 -> 1
 void sd_skeleton_interpolate_4_animations(SDSkeleton *skeleton, SDAnimation *l, SDAnimation *f, SDAnimation *r, SDAnimation *b, f32 in_t, f32 dt) {
     skeleton->delta_time = dt;
     if(in_t < -90) {
-        f32 t = remap(-180, -90, 0, 1, in_t);
+        f32 t = sd_remap(-180, -90, 0, 1, in_t);
         skeleton->current_time[0] += b->ticks_per_second * dt;
         skeleton->current_time[0] = fmod(skeleton->current_time[0], b->duration);
         skeleton->current_time[1] += l->ticks_per_second * dt;
         skeleton->current_time[1] = fmod(skeleton->current_time[1], l->duration);
         calculate_bone_transform(skeleton, b, l, t, &skeleton->root_node, SDMat4());
     } else if(in_t < 0) {
-        f32 t = remap(-90, 0, 0, 1, in_t);
+        f32 t = sd_remap(-90, 0, 0, 1, in_t);
         skeleton->current_time[0] += l->ticks_per_second * dt;
         skeleton->current_time[0] = fmod(skeleton->current_time[0], l->duration);
         skeleton->current_time[1] += f->ticks_per_second * dt;
         skeleton->current_time[1] = fmod(skeleton->current_time[1], f->duration);
         calculate_bone_transform(skeleton, l, f, t, &skeleton->root_node, SDMat4());
     } else if(in_t < 90) {
-        f32 t = remap(0, 90, 0, 1, in_t);
+        f32 t = sd_remap(0, 90, 0, 1, in_t);
         skeleton->current_time[0] += f->ticks_per_second * dt;
         skeleton->current_time[0] = fmod(skeleton->current_time[0], f->duration);
         skeleton->current_time[1] += r->ticks_per_second * dt;
         skeleton->current_time[1] = fmod(skeleton->current_time[1], r->duration);
         calculate_bone_transform(skeleton, f, r, t, &skeleton->root_node, SDMat4());
     } else if(in_t <= 180) {
-        f32 t = remap(90, 180, 0, 1, in_t);
+        f32 t = sd_remap(90, 180, 0, 1, in_t);
         skeleton->current_time[0] += r->ticks_per_second * dt;
         skeleton->current_time[0] = fmod(skeleton->current_time[0], r->duration);
         skeleton->current_time[1] += b->ticks_per_second * dt;

@@ -8,6 +8,10 @@
 #define VEC_EPSILON 0.000001f
 
 // TODO: Important unify the use of const ref or the not use of it
+f32 sd_lerp(f32 a, f32 b, f32 t);
+f32 sd_inv_lerp(f32 a, f32 b, f32 v);
+f32 sd_remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v);
+
 
 struct SDVec2
 {
