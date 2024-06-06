@@ -22,10 +22,19 @@ i32 main() {
     sd_set_view_mat(sd_mat4_lookat(SDVec3(0, 5, -7), SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
     sd_set_proj_mat(sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
     
+    f32 fps_target = 1.0f / 60.0f;
+
     f64 last_time = sd_get_time();
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
+        f32 elapsed_time = current_time - last_time;
+        while(elapsed_time < fps_target) {
+            current_time = sd_get_time();
+            elapsed_time = current_time - last_time;
+        }
+        
+
         f32 dt = (f32)(current_time - last_time);
         
         SD_INFO("FPS: %lf", 1.0f/dt);

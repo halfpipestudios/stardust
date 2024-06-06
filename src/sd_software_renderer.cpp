@@ -17,15 +17,16 @@ static SDVec3 view_pos;
 #include "sd_cpu_renderer_utils.inl"
 
 void sd_clear_back_buffer(f32 r_, f32 g_, f32 b_) {
-    uint8_t a = 0xFF;
-    uint8_t r = (uint8_t)(r_ * 255.0f);
-    uint8_t g = (uint8_t)(g_ * 255.0f);
-    uint8_t b = (uint8_t)(b_ * 255.0f);
-    uint32_t clear_color = (a << 24) | (r << 16) | (g << 8) | b;
-    for(int i = 0; i < sd_window_width() * sd_window_height(); i++)
-    {
-        sd_back_buffer()[i] = clear_color;
-        sd_depth_buffer()[i] = 0.0f;
+    u8 a = 0xFF;
+    u8 r = (u8)(r_ * 255.0f);
+    u8 g = (u8)(g_ * 255.0f);
+    u8 b = (u8)(b_ * 255.0f);
+    u32 color = (a << 24) | (r << 16) | (g << 8) | b;
+    __m128i clear_color = _mm_set1_epi32(color);
+    __m128 zero = _mm_set1_ps(0.0f);
+    for(int i = 0; i < sd_window_width() * sd_window_height(); i += 4) {
+        _mm_store_si128((__m128i *)(sd_back_buffer() + i), clear_color);
+        _mm_store_ps(sd_depth_buffer() + i, zero);
     }
 }
 

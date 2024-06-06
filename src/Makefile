@@ -1,7 +1,7 @@
 # build the sample
 build:
 	cl \
-	/std:c++17 /W2 /nologo /O2 /Zi /EHsc \
+	/std:c++17 /W2 /nologo /Od /Zi /EHsc \
 	/I../include \
 	.\main.cpp \
 	/Fo../bin/ /Fe../bin/game /Fm../bin/ \

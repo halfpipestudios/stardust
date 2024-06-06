@@ -23,5 +23,6 @@ f32 *sd_depth_buffer();
 SDMemory *sd_memory();
 
 f64 sd_get_time();
+void sd_sleep(f32 milisecons_to_sleep);
 
 void sd_log_message(SDLogType type, const char *message, ...);

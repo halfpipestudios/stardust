@@ -197,6 +197,10 @@ f64 sd_get_time() {
     return time;
 }
 
+void sd_sleep(f32 milisecons_to_sleep) {
+    Sleep((DWORD)milisecons_to_sleep);
+}
+
 
 void sd_log_message(SDLogType type, const char *message, ...) {
     char buffer[32000];
