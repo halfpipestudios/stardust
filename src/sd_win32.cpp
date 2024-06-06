@@ -39,6 +39,8 @@ static bool should_quit;
 static i32 vsynch;
 static SDMemory memory;
 
+static LARGE_INTEGER frequency;
+
 static void sd_window_open(char *title, u32 width, u32 height) {
     HINSTANCE instance = GetModuleHandle(0);
 
@@ -113,6 +115,8 @@ void sd_init(char *title, u32 width, u32 height) {
     if(memory.data) {
         SD_INFO("memory allocated: %d bytes", memory.size);
     }
+
+    QueryPerformanceFrequency(&frequency);
 }
 
 void sd_shutdown() {
@@ -185,6 +189,14 @@ f32 *sd_depth_buffer() {
 SDMemory *sd_memory() {
     return &memory;
 }
+
+f64 sd_get_time() {
+    LARGE_INTEGER current_counter;
+    QueryPerformanceCounter(&current_counter);
+    f64 time = (f64)current_counter.QuadPart / frequency.QuadPart;
+    return time;
+}
+
 
 void sd_log_message(SDLogType type, const char *message, ...) {
     char buffer[32000];

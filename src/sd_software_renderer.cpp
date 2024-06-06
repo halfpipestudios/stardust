@@ -1,6 +1,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <immintrin.h>
+#include <xmmintrin.h>
+
 #include <sd_software_renderer.h>
 #include <sd_platform.h>
 #include <sd_memory.h>
@@ -26,16 +29,16 @@ void sd_clear_back_buffer(f32 r_, f32 g_, f32 b_) {
     }
 }
 
-void sd_set_world_mat(SDMat4 *world_) {
-    world = *world_;
+void sd_set_world_mat(SDMat4 &world_) {
+    world = world_;
 }
 
-void sd_set_view_mat(SDMat4 *view_) {
-    view = *view_;
+void sd_set_view_mat(SDMat4 &view_) {
+    view = view_;
 }
 
-void sd_set_proj_mat(SDMat4 *proj_) {
-    proj = *proj_;
+void sd_set_proj_mat(SDMat4 &proj_) {
+    proj = proj_;
 }
 
 SDVertexBuffer *sd_create_vertex_buffer(SDArena *arena, SDVertex *vertices, u32 count) {
@@ -48,25 +51,18 @@ SDVertexBuffer *sd_create_vertex_buffer(SDArena *arena, SDVertex *vertices, u32 
 
 void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b) {
     SDMat4 view_world = view * world;
-
     if(current_texture) {
         for(int j = 0; j < buffer->vertices_count; j += 3) {
-            DrawTriangle(buffer->vertices + j, view_world, proj, current_texture, sd_depth_buffer());
+            DrawTriangle(buffer->vertices + j, view_world, proj, current_texture);
         }
-    }
-    else {
-        for(int j = 0; j < buffer->vertices_count; j += 3) {
-            DrawTriangle(buffer->vertices + j, view_world, proj, r, g, b, sd_depth_buffer());
-        }
-    }
-    
+    }    
 }
 
 void sd_draw_anim_vertex_buffer(SDMat4 *pallete, SDVertexBuffer *buffer) {
     SDMat4 view_world = view * world;
     if(current_texture) {
         for(int j = 0; j < buffer->vertices_count; j += 3) {
-            DrawTriangleAnim(pallete, buffer->vertices + j, view_world, proj, current_texture, sd_depth_buffer());
+            DrawTriangleAnim(pallete, buffer->vertices + j, view_world, proj, current_texture);
         }
     }
 }

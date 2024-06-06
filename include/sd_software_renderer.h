@@ -26,9 +26,9 @@ struct SDTexture {
 };
 
 void sd_clear_back_buffer(f32 r, f32 g, f32 b);
-void sd_set_world_mat(SDMat4 *world);
-void sd_set_view_mat(SDMat4 *view);
-void sd_set_proj_mat(SDMat4 *proj);
+void sd_set_world_mat(SDMat4 &world);
+void sd_set_view_mat(SDMat4 &view);
+void sd_set_proj_mat(SDMat4 &proj);
 
 SDVertexBuffer *sd_create_vertex_buffer(SDArena *arena, SDVertex *vertices, u32 count);
 void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b);

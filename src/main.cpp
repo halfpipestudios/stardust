@@ -2,7 +2,7 @@
 
 i32 main() {
     // TODO: pass the memory size here
-    sd_init("Stardust Demo", 800, 600);
+    sd_init("Stardust Demo", 960, 540);
 
     sd_init_scratch_arenas(sd_memory(), 3, SD_MB(10));
 
@@ -19,13 +19,23 @@ i32 main() {
     SDAnimation *walk_left = sd_animation_create(&arena, "../data/walk_left.dae");
     SDAnimation *walk_right = sd_animation_create(&arena, "../data/walk_right.dae");
 
-    sd_set_view_mat(&sd_mat4_lookat(SDVec3(0, 5, -7), SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
-    sd_set_proj_mat(&sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
+    sd_set_view_mat(sd_mat4_lookat(SDVec3(0, 5, -7), SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
+    sd_set_proj_mat(sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
     
+    f64 last_time = sd_get_time();
     while(sd_should_close() == false) {
+
+        f64 current_time = sd_get_time();
+        f32 dt = (f32)(current_time - last_time);
+        
+        SD_INFO("FPS: %lf", 1.0f/dt);
+
+        last_time = current_time;
+
         sd_process_events();
 
-        static f32 anim_speed = 0.033f;
+        f32 anim_speed = dt;
+        static f32 anim_rot = 0.0f;
         
         SDVec3 front = SDVec3(0, 0, 1);
         SDVec3 right = SDVec3(1, 0, 0);
@@ -40,19 +50,15 @@ i32 main() {
         angle = (angle/SD_PI) *180.0f;
 
 
-        if(sd_key_down(SD_KEY_UP)) {
-            anim_speed += 0.001f;
-        }
-        if(sd_key_down(SD_KEY_DOWN)) {
-            anim_speed -= 0.001f;
-        }
+        anim_rot += sd_get_right_stick_x() * -0.1f;
 
         sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, idle, angle, speed, anim_speed);
 
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
         sd_set_texture(warrior_tex);
-        sd_set_world_mat(&(sd_mat4_scale(3, 3, 3)));
+
+        sd_set_world_mat(sd_mat4_scale(3, 3, 3) * sd_mat4_rotation_y(anim_rot));
         sd_draw_anim_vertex_buffer(warior_skeleton->final_bone_matrices, warrior->vbuffer);
 
         sd_present();

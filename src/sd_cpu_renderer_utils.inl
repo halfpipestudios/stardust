@@ -90,27 +90,30 @@ static void HomogenousClipping(Vec4 *srcVertices, SDVec2 *srcUvs, int32_t srcCou
     }
 }
 
-static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, float r_, float g_, float b_, float *depthBuffer) {
-    uint32_t color = RgbToUint32(r_, g_, b_, 1);
+#define M(a, i) ((f32 *)&(a))[i]
+#define Mi(a, i) ((i32 *)&(a))[i]
+#define Mu(a, i) ((u32 *)&(a))[i]
 
-    Vec4 transformVertex[3];
-    for(int i = 0; i < 3; i++)
-    {
-        transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
-    }
-    
+void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 proj, SDTexture *texture) {
+
+    //===========================================================================================
+    // TODO: Fix back face culling (view dir is probably wrong) 
+    //===========================================================================================
     SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
     SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
     SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
     SDVec3 ab = b - a;
     SDVec3 ac = c - a;
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
+    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f; // global variable view ...
     SDVec3 camera_ray = camera_origin - a;
     if(sd_vec3_dot(normal, camera_ray) < 0) return;
-    
-    for(int i = 0; i < 3; i++)
-    {
+    //===========================================================================================
+
+    u32 *backBuffer = sd_back_buffer();
+    f32 *depthBuffer = sd_depth_buffer();    
+
+    for(int i = 0; i < 3; i++) {
         transformVertex[i] = proj * Vec4(transformVertex[i].x, transformVertex[i].y, transformVertex[i].z, 1.0f);
     }
 
@@ -139,118 +142,12 @@ static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, f
                         clippedVertexA, clippedUvsA, &clippedVertexACount,
                         2,  1.0f);
 
-    for(int i = 0; i < clippedVertexACount - 2; i++)
-    {
-        Vec4 finalA = clippedVertexA[0];
-        Vec4 finalB = clippedVertexA[1 + i];
-        Vec4 finalC = clippedVertexA[2 + i];
+    __m128 zero = _mm_set1_ps(0.0f);
+    __m128 one  = _mm_set1_ps(1.0f);
+    __m128 texture_w = _mm_set1_ps((f32)texture->w);
+    __m128 texture_h = _mm_set1_ps((f32)texture->h);
 
-        finalA.x /= finalA.w; finalA.y /= finalA.w;
-        finalB.x /= finalB.w; finalB.y /= finalB.w;
-        finalC.x /= finalC.w; finalC.y /= finalC.w;
-
-        finalA *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalA += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalB *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalB += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalC *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalC += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-
-        SDVec2 min{ FLT_MAX,  FLT_MAX};
-        SDVec2 max{-FLT_MAX, -FLT_MAX};
-        min.x = SD_MIN(min.x, finalA.x); min.y = SD_MIN(min.y, finalA.y);
-        max.x = SD_MAX(max.x, finalA.x); max.y = SD_MAX(max.y, finalA.y);
-        min.x = SD_MIN(min.x, finalB.x); min.y = SD_MIN(min.y, finalB.y);
-        max.x = SD_MAX(max.x, finalB.x); max.y = SD_MAX(max.y, finalB.y);
-        min.x = SD_MIN(min.x, finalC.x); min.y = SD_MIN(min.y, finalC.y);
-        max.x = SD_MAX(max.x, finalC.x); max.y = SD_MAX(max.y, finalC.y);
-
-        max.x = SD_MIN(max.x, sd_window_width() - 1);
-        max.y = SD_MIN(max.y, sd_window_height() - 1);
-
-        for(int y = (int)min.y; y <= (int)max.y; y++)
-        {
-            for(int x = (int)min.x; x <= (int)max.x; x++)
-            {
-                uint32_t *backBuffer = sd_back_buffer();
-                Vec4 p{ (float)x, (float)y, 0.0f, 0.0f };
-
-                Vec4 a = finalA - p;
-                Vec4 b = finalB - p;
-                Vec4 c = finalC - p;
-                // ab bc ca
-                float ab = (a.x * b.y) - (a.y * b.x);
-                float bc = (b.x * c.y) - (b.y * c.x);
-                float ca = (c.x * a.y) - (c.y * a.x);             
-                if(ab >= 0 && bc >= 0 && ca >= 0)
-                {
-                    SDVec3 coords = Barycentric(SDVec3(finalA.x, finalA.y, 0.0f), SDVec3(finalB.x, finalB.y, 0.0f), SDVec3(finalC.x, finalC.y, 0.0f), SDVec3((float)x, (float)y, 0.0f));
-                    float invZA = 1.0f / finalA.w;
-                    float invZB = 1.0f / finalB.w;
-                    float invZC = 1.0f / finalC.w;
-                    float currentInvZ = coords.x * invZA + coords.y * invZB + coords.z *invZC;
-                    float lastInvZ = depthBuffer[y * sd_window_width() + x];
-                    if(currentInvZ >= lastInvZ)
-                    {
-                        backBuffer[y * sd_window_width() + x] = color;
-                        depthBuffer[y * sd_window_width() + x] = currentInvZ;
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture, float *depthBuffer) {
-    Vec4 transformVertex[3];
-    for(int i = 0; i < 3; i++)
-    {
-        transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
-    }
-
-    SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
-    SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
-    SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
-    SDVec3 ab = b - a;
-    SDVec3 ac = c - a;
-    SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
-    SDVec3 camera_ray = camera_origin - a;
-    if(sd_vec3_dot(normal, camera_ray) < 0) return;
-
-    for(int i = 0; i < 3; i++)
-    {
-        transformVertex[i] = proj * Vec4(transformVertex[i].x, transformVertex[i].y, transformVertex[i].z, 1.0f);
-    }
-
-    int32_t clippedVertexACount = 3;
-    Vec4 clippedVertexA[16] = { transformVertex[0], transformVertex[1], transformVertex[2] };
-    SDVec2 clippedUvsA[16] = { vertices[0].uvs, vertices[1].uvs, vertices[2].uvs };
-    int32_t clippedVertexBCount = 0;
-    Vec4 clippedVertexB[16];
-    SDVec2 clippedUvsB[16];
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        0, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        0,  1.0f);
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        1, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        1,  1.0f);
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        2, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        2,  1.0f);
-
-    for(int i = 0; i < clippedVertexACount - 2; i++)
-    {
+    for(int i = 0; i < clippedVertexACount - 2; i++) {
         Vec4 finalA = clippedVertexA[0];
         Vec4 finalB = clippedVertexA[1 + i];
         Vec4 finalC = clippedVertexA[2 + i];
@@ -262,67 +159,185 @@ static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, S
         finalB.x /= finalB.w; finalB.y /= finalB.w;
         finalC.x /= finalC.w; finalC.y /= finalC.w;
 
-        finalA *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalA += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalB *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalB += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalC *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalC += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
+        f32 h_window_width = (f32)sd_window_width() * 0.5f;
+        f32 h_window_height = (f32)sd_window_height() * 0.5f;
+        finalA *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
+        finalA += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
+        finalB *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
+        finalB += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
+        finalC *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
+        finalC += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
 
-        SDVec2 min{ FLT_MAX,  FLT_MAX};
-        SDVec2 max{-FLT_MAX, -FLT_MAX};
-        min.x = SD_MIN(min.x, finalA.x); min.y = SD_MIN(min.y, finalA.y);
-        max.x = SD_MAX(max.x, finalA.x); max.y = SD_MAX(max.y, finalA.y);
-        min.x = SD_MIN(min.x, finalB.x); min.y = SD_MIN(min.y, finalB.y);
-        max.x = SD_MAX(max.x, finalB.x); max.y = SD_MAX(max.y, finalB.y);
-        min.x = SD_MIN(min.x, finalC.x); min.y = SD_MIN(min.y, finalC.y);
-        max.x = SD_MAX(max.x, finalC.x); max.y = SD_MAX(max.y, finalC.y);
+        i32 min_x, min_y, max_x, max_y;
+        min_x = (i32)SD_MIN(finalA.x, SD_MIN(finalB.x, finalC.x));
+        min_y = (i32)SD_MIN(finalA.y, SD_MIN(finalB.y, finalC.y));
+        max_x = (i32)SD_MAX(finalA.x, SD_MAX(finalB.x, finalC.x));
+        max_y = (i32)SD_MAX(finalA.y, SD_MAX(finalB.y, finalC.y));
 
-        max.x = SD_MIN(max.x, sd_window_width() - 1);
-        max.y = SD_MIN(max.y, sd_window_height() - 1);
+        max_x = SD_MIN(max_x, sd_window_width() - 1);
+        max_y = SD_MIN(max_y, sd_window_height() - 1);
 
-        for(int y = (int)min.y; y <= (int)max.y; y++)
-        {
-            for(int x = (int)min.x; x <= (int)max.x; x++)
-            {
-                uint32_t *backBuffer = sd_back_buffer();
-                Vec4 p{ (float)x, (float)y, 0.0f, 0.0f };
+        // TODO: clip to the tile ...
 
-                Vec4 a = finalA - p;
-                Vec4 b = finalB - p;
-                Vec4 c = finalC - p;
-                // ab bc ca
-                float ab = (a.x * b.y) - (a.y * b.x);
-                float bc = (b.x * c.y) - (b.y * c.x);
-                float ca = (c.x * a.y) - (c.y * a.x);             
-                if(ab >= 0 && bc >= 0 && ca >= 0)
-                {
-                    SDVec3 coords = Barycentric(SDVec3(finalA.x, finalA.y, 0.0f), SDVec3(finalB.x, finalB.y, 0.0f), SDVec3(finalC.x, finalC.y, 0.0f), SDVec3((float)x, (float)y, 0.0f));
-                    float invZA = 1.0f / finalA.w;
-                    float invZB = 1.0f / finalB.w;
-                    float invZC = 1.0f / finalC.w;
-                    float currentInvZ = coords.x * invZA + coords.y * invZB + coords.z *invZC;
-                    float lastInvZ = depthBuffer[y * sd_window_width() + x];
-                    if(currentInvZ >= lastInvZ)
-                    {
-                        float invU = (coords.x * (finalUvA.x / finalA.w) + coords.y * (finalUvB.x / finalB.w) + coords.z * (finalUvC.x / finalC.w));
-                        float invV = (coords.x * (finalUvA.y / finalA.w) + coords.y * (finalUvB.y / finalB.w) + coords.z * (finalUvC.y / finalC.w));
+        if((min_x >= max_x) || (min_y >= max_y)) continue;
 
-                        uint32_t u = (uint32_t)((invU / currentInvZ) * (float)texture->w);
-                        uint32_t v = (uint32_t)((invV / currentInvZ) * (float)texture->h);
+        __m128i start_clip_mask = _mm_set1_epi8(-1);
+        __m128i end_clip_mask = _mm_set1_epi8(-1);
+        __m128i start_clip_masks[] = {
+            _mm_slli_si128(start_clip_mask, 0*4),
+            _mm_slli_si128(start_clip_mask, 1*4),
+            _mm_slli_si128(start_clip_mask, 2*4),
+            _mm_slli_si128(start_clip_mask, 3*4),
+        };
+        __m128i end_clip_masks[] = {
+            _mm_srli_si128(end_clip_mask, 3*4),
+            _mm_srli_si128(end_clip_mask, 2*4),
+            _mm_srli_si128(end_clip_mask, 1*4),
+            _mm_srli_si128(end_clip_mask, 0*4),
+        };
 
-                        backBuffer[y * sd_window_width() + x] = texture->data[v * texture->w + u];
-                        depthBuffer[y * sd_window_width() + x] = currentInvZ;
+        if(min_x & 3) {
+            start_clip_mask = start_clip_masks[min_x & 3];
+            min_x = min_x & ~3;
+        }
+        if(max_x & 3) {
+            end_clip_mask = end_clip_masks[max_x & 3];
+            max_x = (max_x & ~3) + 4;
+        }
+
+        // Vertices
+        __m128 vert_a_x = _mm_set1_ps(finalA.x);
+        __m128 vert_a_y = _mm_set1_ps(finalA.y);
+        __m128 vert_a_inv_z = _mm_set1_ps(1.0f/finalA.w);
+        __m128 vert_b_x = _mm_set1_ps(finalB.x);
+        __m128 vert_b_y = _mm_set1_ps(finalB.y);
+        __m128 vert_b_inv_z = _mm_set1_ps(1.0f/finalB.w);
+        __m128 vert_c_x = _mm_set1_ps(finalC.x);
+        __m128 vert_c_y = _mm_set1_ps(finalC.y);
+        __m128 vert_c_inv_z = _mm_set1_ps(1.0f/finalC.w);
+        // Uvs
+        __m128 uv_a_x = _mm_set1_ps(finalUvA.x);
+        __m128 uv_a_y = _mm_set1_ps(finalUvA.y);
+        __m128 uv_b_x = _mm_set1_ps(finalUvB.x);
+        __m128 uv_b_y = _mm_set1_ps(finalUvB.y);
+        __m128 uv_c_x = _mm_set1_ps(finalUvC.x);
+        __m128 uv_c_y = _mm_set1_ps(finalUvC.y);
+        // Barycentric
+        __m128 v0x = _mm_sub_ps(vert_b_x, vert_a_x);
+        __m128 v0y = _mm_sub_ps(vert_b_y, vert_a_y);
+        __m128 v1x = _mm_sub_ps(vert_c_x, vert_a_x);
+        __m128 v1y = _mm_sub_ps(vert_c_y, vert_a_y);
+        __m128 d00 = _mm_add_ps(_mm_mul_ps(v0x, v0x), _mm_mul_ps(v0y, v0y));
+        __m128 d10 = _mm_add_ps(_mm_mul_ps(v1x, v0x), _mm_mul_ps(v1y, v0y));
+        __m128 d11 = _mm_add_ps(_mm_mul_ps(v1x, v1x), _mm_mul_ps(v1y, v1y));
+        __m128 denom = _mm_sub_ps(_mm_mul_ps(d00, d11), _mm_mul_ps(d10, d10));
+
+
+        for(i32 y = min_y; y <= max_y; y++) {
+            __m128 test_y = _mm_set1_ps(y);
+            __m128i clip_mask = start_clip_mask;
+            for(i32 x = min_x; x <= max_x; x += 4) {
+                u32 *pixel_pt = backBuffer + (y * sd_window_width() + x);
+                __m128i original_dest = _mm_load_si128((__m128i *)pixel_pt);
+
+                f32 *depth_pt = depthBuffer + (y * sd_window_width() + x);
+                __m128 depth = _mm_load_ps(depth_pt);
+
+                __m128 test_x = _mm_set_ps(x + 3, x + 2, x + 1, x);
+
+                __m128 ax = _mm_sub_ps(vert_a_x, test_x);
+                __m128 ay = _mm_sub_ps(vert_a_y, test_y); 
+                __m128 bx = _mm_sub_ps(vert_b_x, test_x);
+                __m128 by = _mm_sub_ps(vert_b_y, test_y); 
+                __m128 cx = _mm_sub_ps(vert_c_x, test_x);
+                __m128 cy = _mm_sub_ps(vert_c_y, test_y); 
+
+                __m128 ab = _mm_sub_ps(_mm_mul_ps(ax, by), _mm_mul_ps(ay, bx));
+                __m128 bc = _mm_sub_ps(_mm_mul_ps(bx, cy), _mm_mul_ps(by, cx));
+                __m128 ca = _mm_sub_ps(_mm_mul_ps(cx, ay), _mm_mul_ps(cy, ax));
+
+                __m128 test_ab = _mm_cmpge_ps(ab, zero);
+                __m128 test_bc = _mm_cmpge_ps(bc, zero);
+                __m128 test_ca = _mm_cmpge_ps(ca, zero);
+                __m128 write_mask = _mm_and_ps(_mm_and_ps(test_ab, test_bc), test_ca);
+                if(_mm_movemask_ps(write_mask)) {
+                    __m128i write_maski = _mm_castps_si128(write_mask);
+
+                    __m128 v2x = _mm_sub_ps(test_x, vert_a_x);
+                    __m128 v2y = _mm_sub_ps(test_y, vert_a_y);
+                    __m128 d20 = _mm_add_ps(_mm_mul_ps(v2x, v0x), _mm_mul_ps(v2y, v0y));
+                    __m128 d21 = _mm_add_ps(_mm_mul_ps(v2x, v1x), _mm_mul_ps(v2y, v1y));
+                    __m128 gamma = _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d20, d11), _mm_mul_ps(d10, d21)), denom);
+                    __m128 beta =  _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d00, d21), _mm_mul_ps(d20, d10)), denom);
+                    __m128 alpha = _mm_sub_ps(one, gamma);
+                    alpha = _mm_sub_ps(alpha, beta);
+
+                    __m128 inv_z = _mm_add_ps(_mm_add_ps(_mm_mul_ps(vert_a_inv_z, alpha), _mm_mul_ps(vert_b_inv_z, gamma)), _mm_mul_ps(vert_c_inv_z, beta));
+                    __m128 depth_test_mask = _mm_cmpge_ps(inv_z, depth);
+
+                    if(_mm_movemask_ps(depth_test_mask)) {
+                        __m128i depth_test_maski = _mm_castps_si128(depth_test_mask);
+
+                        // Update the writeMask with the new information
+                        write_maski = _mm_and_si128(write_maski, depth_test_maski);
+                        write_mask = _mm_and_ps(write_mask, depth_test_mask);
+                        write_maski = _mm_and_si128(write_maski, clip_mask);
+                        write_mask = _mm_and_ps(write_mask, _mm_castsi128_ps(clip_mask));
+
+                        __m128 inv_u_a = _mm_mul_ps(alpha, _mm_mul_ps(uv_a_x, vert_a_inv_z));
+                        __m128 inv_u_b = _mm_mul_ps(gamma, _mm_mul_ps(uv_b_x, vert_b_inv_z));
+                        __m128 inv_u_c = _mm_mul_ps(beta,  _mm_mul_ps(uv_c_x, vert_c_inv_z));
+                        __m128 int_u = _mm_div_ps(_mm_add_ps(_mm_add_ps(inv_u_a, inv_u_b), inv_u_c), inv_z);
+
+                        __m128 inv_v_a = _mm_mul_ps(alpha, _mm_mul_ps(uv_a_y, vert_a_inv_z));
+                        __m128 inv_v_b = _mm_mul_ps(gamma, _mm_mul_ps(uv_b_y, vert_b_inv_z));
+                        __m128 inv_v_c = _mm_mul_ps(beta,  _mm_mul_ps(uv_c_y, vert_c_inv_z));
+                        __m128 int_v = _mm_div_ps(_mm_add_ps(_mm_add_ps(inv_v_a, inv_v_b), inv_v_c), inv_z);
+
+                        __m128i u = _mm_cvtps_epi32(_mm_mul_ps(int_u, texture_w));
+                        __m128i v = _mm_cvtps_epi32(_mm_mul_ps(int_v, texture_h));
+
+                        __m128i color;
+                        for(i32 j = 0; j < 4; ++j) {
+                            i32 textureX = Mi(u, j);
+                            i32 textureY = Mi(v, j);
+                            if(textureX >= texture->w) {
+                                continue;
+                            }
+                            if(textureY < 0 || textureY >= texture->h) {
+                                continue;
+                            }
+                            Mi(color, j) = texture->data[textureY * texture->w + textureX];
+                        }
+
+                        __m128i color_masked_out = _mm_or_si128(_mm_and_si128(write_maski, color), _mm_andnot_si128(write_maski, original_dest));
+                        __m128 depth_mask_out = _mm_or_ps(_mm_and_ps(write_mask, inv_z), _mm_andnot_ps(write_mask, depth));
+                        _mm_store_si128((__m128i *)pixel_pt, color_masked_out);
+                        _mm_store_ps(depth_pt, depth_mask_out);
                     }
+                }
+                
+                if((x + 4) >= max_x) {
+                    clip_mask = end_clip_mask;
+                } else {
+                    clip_mask = _mm_set1_epi8(-1);
                 }
             }
         }
     }
 
-
 }
 
-static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture, float *depthBuffer) {
+static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture) {
+    Vec4 transformVertex[3];
+    for(int i = 0; i < 3; i++)
+    {
+        transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
+    }
+    proj_and_razterization(vertices, transformVertex, proj, texture);
+}
+
+static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture) {
     Vec4 transformVertex[3];
     for(int i = 0; i < 3; i++)
     {
@@ -336,122 +351,9 @@ static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_w
             Vec4 local_position = pallete[vertices[i].bone_id[j]] * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
             total_position += local_position * vertices[i].weights[j];
         }
-
         transformVertex[i] = view_world * total_position;
     }
-
-    // TODO: Fix back face culling (view dir is probably wrong) 
-    
-    SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
-    SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
-    SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
-    SDVec3 ab = b - a;
-    SDVec3 ac = c - a;
-    SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f;
-    SDVec3 camera_ray = camera_origin - a;
-    if(sd_vec3_dot(normal, camera_ray) < 0) return;
-    
-
-    for(int i = 0; i < 3; i++)
-    {
-        transformVertex[i] = proj * Vec4(transformVertex[i].x, transformVertex[i].y, transformVertex[i].z, 1.0f);
-    }
-
-    int32_t clippedVertexACount = 3;
-    Vec4 clippedVertexA[16] = { transformVertex[0], transformVertex[1], transformVertex[2] };
-    SDVec2 clippedUvsA[16] = { vertices[0].uvs, vertices[1].uvs, vertices[2].uvs };
-    int32_t clippedVertexBCount = 0;
-    Vec4 clippedVertexB[16];
-    SDVec2 clippedUvsB[16];
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        0, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        0,  1.0f);
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        1, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        1,  1.0f);
-    HomogenousClipping(clippedVertexA, clippedUvsA, clippedVertexACount,
-                        clippedVertexB, clippedUvsB, &clippedVertexBCount,
-                        2, -1.0f);
-    HomogenousClipping(clippedVertexB, clippedUvsB, clippedVertexBCount,
-                        clippedVertexA, clippedUvsA, &clippedVertexACount,
-                        2,  1.0f);
-
-    for(int i = 0; i < clippedVertexACount - 2; i++)
-    {
-        Vec4 finalA = clippedVertexA[0];
-        Vec4 finalB = clippedVertexA[1 + i];
-        Vec4 finalC = clippedVertexA[2 + i];
-        SDVec2 finalUvA = clippedUvsA[0];
-        SDVec2 finalUvB = clippedUvsA[1 + i];
-        SDVec2 finalUvC = clippedUvsA[2 + i];
-
-        finalA.x /= finalA.w; finalA.y /= finalA.w;
-        finalB.x /= finalB.w; finalB.y /= finalB.w;
-        finalC.x /= finalC.w; finalC.y /= finalC.w;
-
-        finalA *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalA += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalB *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalB += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-        finalC *= Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 1.0f, 1.0f};
-        finalC += Vec4{(float)sd_window_width()*0.5f, (float)sd_window_height()*0.5f, 0.0f, 0.0f};
-
-        SDVec2 min{ FLT_MAX,  FLT_MAX};
-        SDVec2 max{-FLT_MAX, -FLT_MAX};
-        min.x = SD_MIN(min.x, finalA.x); min.y = SD_MIN(min.y, finalA.y);
-        max.x = SD_MAX(max.x, finalA.x); max.y = SD_MAX(max.y, finalA.y);
-        min.x = SD_MIN(min.x, finalB.x); min.y = SD_MIN(min.y, finalB.y);
-        max.x = SD_MAX(max.x, finalB.x); max.y = SD_MAX(max.y, finalB.y);
-        min.x = SD_MIN(min.x, finalC.x); min.y = SD_MIN(min.y, finalC.y);
-        max.x = SD_MAX(max.x, finalC.x); max.y = SD_MAX(max.y, finalC.y);
-
-        max.x = SD_MIN(max.x, sd_window_width() - 1);
-        max.y = SD_MIN(max.y, sd_window_height() - 1);
-
-        for(int y = (int)min.y; y <= (int)max.y; y++)
-        {
-            for(int x = (int)min.x; x <= (int)max.x; x++)
-            {
-                uint32_t *backBuffer = sd_back_buffer();
-                Vec4 p{ (float)x, (float)y, 0.0f, 0.0f };
-
-                Vec4 a = finalA - p;
-                Vec4 b = finalB - p;
-                Vec4 c = finalC - p;
-                // ab bc ca
-                float ab = (a.x * b.y) - (a.y * b.x);
-                float bc = (b.x * c.y) - (b.y * c.x);
-                float ca = (c.x * a.y) - (c.y * a.x);             
-                if(ab >= 0 && bc >= 0 && ca >= 0)
-                {
-                    SDVec3 coords = Barycentric(SDVec3(finalA.x, finalA.y, 0.0f), SDVec3(finalB.x, finalB.y, 0.0f), SDVec3(finalC.x, finalC.y, 0.0f), SDVec3((float)x, (float)y, 0.0f));
-                    float invZA = 1.0f / finalA.w;
-                    float invZB = 1.0f / finalB.w;
-                    float invZC = 1.0f / finalC.w;
-                    float currentInvZ = coords.x * invZA + coords.y * invZB + coords.z *invZC;
-                    float lastInvZ = depthBuffer[y * sd_window_width() + x];
-                    if(currentInvZ >= lastInvZ)
-                    {
-                        float invU = (coords.x * (finalUvA.x / finalA.w) + coords.y * (finalUvB.x / finalB.w) + coords.z * (finalUvC.x / finalC.w));
-                        float invV = (coords.x * (finalUvA.y / finalA.w) + coords.y * (finalUvB.y / finalB.w) + coords.z * (finalUvC.y / finalC.w));
-
-                        uint32_t u = (uint32_t)((invU / currentInvZ) * (float)texture->w);
-                        uint32_t v = (uint32_t)((invV / currentInvZ) * (float)texture->h);
-
-                        backBuffer[y * sd_window_width() + x] = texture->data[v * texture->w + u];
-                        depthBuffer[y * sd_window_width() + x] = currentInvZ;
-                    }
-                }
-            }
-        }
-    }
-
-
+    proj_and_razterization(vertices, transformVertex, proj, texture);
 }
+
+
