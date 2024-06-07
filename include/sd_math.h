@@ -224,6 +224,9 @@ SDMat4 sd_mat4_perspective(float fov, float aspect, float znear, float zfar);
 
 SDMat4 sd_mat4_inverse(const SDMat4& m);
 
+SDVec3 sd_mat4_transform_vector(SDMat4 m, SDVec3 v);
+SDVec3 sd_mat4_transform_point(SDMat4 m, SDVec3 v);
+
 struct SDQuat {
     union {
         struct {

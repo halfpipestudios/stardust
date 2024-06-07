@@ -68,6 +68,13 @@ void sd_draw_anim_vertex_buffer(SDMat4 *pallete, SDVertexBuffer *buffer) {
     }
 }
 
+void sd_draw_line(SDVec3 v0, SDVec3 v1, f32 r, f32 g, f32 b) {
+    SDVertex vertices[2];
+    vertices[0].pos = v0;
+    vertices[1].pos = v1;
+    draw_line(vertices, view, proj, r, g, b);
+}
+
 SDTexture *sd_create_texture(SDArena *arena, char *path) {
     SDTexture *texture = sd_arena_push_struct(arena, SDTexture);
     texture->data = (u32 *)LoadImage(arena, path, texture->w, texture->h);

@@ -31,8 +31,9 @@ void sd_set_view_mat(SDMat4 &view);
 void sd_set_proj_mat(SDMat4 &proj);
 
 SDVertexBuffer *sd_create_vertex_buffer(SDArena *arena, SDVertex *vertices, u32 count);
-void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b);
 SDTexture *sd_create_texture(SDArena *arena, char *path);
 void sd_set_texture(SDTexture *texture);
 
+void sd_draw_vertex_buffer(SDVertexBuffer *buffer, f32 r, f32 g, f32 b);
 void sd_draw_anim_vertex_buffer(SDMat4 *pallete, SDVertexBuffer *buffer);
+void sd_draw_line(SDVec3 v0, SDVec3 v1, f32 r, f32 g, f32 b);

@@ -94,7 +94,7 @@ static void HomogenousClipping(Vec4 *srcVertices, SDVec2 *srcUvs, int32_t srcCou
 #define Mi(a, i) ((i32 *)&(a))[i]
 #define Mu(a, i) ((u32 *)&(a))[i]
 
-void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 proj, SDTexture *texture) {
+static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 proj, SDTexture *texture) {
 
     //===========================================================================================
     // TODO: Fix back face culling (view dir is probably wrong) 
@@ -305,13 +305,63 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
 
 }
 
+static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32 r_, f32 g_, f32 b_) {
+    u32 *backBuffer = sd_back_buffer();
+    f32 *depthBuffer = sd_depth_buffer();    
+    u32 color = RgbToUint32(r_, g_, b_, 1.0f);
+    for(int i = 0; i < 2; i++) {
+        transform_vertex[i] = proj * Vec4(transform_vertex[i].x, transform_vertex[i].y, transform_vertex[i].z, 1.0f);
+    }
+
+    Vec4 a = transform_vertex[0];
+    Vec4 b = transform_vertex[1];
+
+    // perpective divide
+    a.x /= a.w; a.y /= a.w;
+    b.x /= b.w; b.y /= b.w;
+    f32 h_window_width = (f32)sd_window_width() * 0.5f;
+    f32 h_window_height = (f32)sd_window_height() * 0.5f;
+    a *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
+    a += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
+    b *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
+    b += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
+
+    i32 x_delta = (i32)(b.x - a.x);
+    i32 y_delta = (i32)(b.y - a.y);
+    i32 side_length = std::abs(x_delta) >= std::abs(y_delta) ? std::abs(x_delta) : std::abs(y_delta);
+    f32 x_inc = (f32)x_delta / (f32)side_length;
+    f32 y_inc = (f32)y_delta / (f32)side_length;
+    f32 x = a.x;
+    f32 y = a.y;
+    for(i32 i = 0; i <= side_length; ++i) {
+        SDVec2 p = SDVec2(x, y);
+        SDVec2 start = SDVec2(a.x, a.y);
+        SDVec2 delta = SDVec2(b.x - a.x, b.y - a.y);
+
+        f32 t = sd_vec2_len(start - p) / sd_vec2_len(delta);
+        f32 int_inv_z = ((1.0f/a.w) + ((1.0f/b.w) - (1.0f/a.w)) * t); 
+
+        i32 window_width = sd_window_width();
+        i32 window_height = sd_window_height();
+        if(x >= 0 && x < (f32)window_width && y >= 0 && y < (f32)window_height) {
+            if(int_inv_z >= depthBuffer[(i32)y * window_width + (i32)x]) {
+                depthBuffer[(i32)y * window_width + (i32)x] = int_inv_z;
+                backBuffer[(i32)y * window_width + (i32)x] = color;
+            } 
+        }
+        x += x_inc;
+        y += y_inc;
+    }
+}
+
+
 static void DrawTriangle(SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture) {
     Vec4 transformVertex[3];
     for(int i = 0; i < 3; i++)
     {
         transformVertex[i] = view_world * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
     }
-    proj_and_razterization(vertices, transformVertex, proj, texture);
+    triangle_proj_and_razterization(vertices, transformVertex, proj, texture);
 }
 
 static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_world, SDMat4& proj, SDTexture *texture) {
@@ -330,7 +380,15 @@ static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_w
         }
         transformVertex[i] = view_world * total_position;
     }
-    proj_and_razterization(vertices, transformVertex, proj, texture);
+    triangle_proj_and_razterization(vertices, transformVertex, proj, texture);
+}
+
+static void draw_line(SDVertex *vertices, SDMat4& view, SDMat4& proj, f32 r, f32 g, f32 b) {
+    Vec4 transform_vertex[2];
+    for(i32 i = 0; i < 2; i++) {
+        transform_vertex[i] = view * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
+    }
+    line_proj_and_razterization(transform_vertex, proj, r, g, b);
 }
 
 

@@ -320,7 +320,13 @@ f32 sd_remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
 
         f32 dot = sd_vec3_dot(a, b);
         f32 len = std::sqrtf(a_len_sq) * std::sqrtf(b_len_sq);
-        return std::asinf(dot / len);
+        f32 result = std::acosf(dot / len);
+
+        if(std::isnan(result)) {
+            result = 0;
+        }
+
+        return result;
     }
 
 
@@ -736,6 +742,16 @@ f32 sd_remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
                       r3.x, r3.y, r3.z,  sd_vec3_dot(c, s));
 
     }
+
+SDVec3 sd_mat4_transform_vector(SDMat4 m, SDVec3 v) {
+    SDVec3 result = sd_vec4_to_vec3(m * Vec4(v.x, v.y, v.z, 0.0f));
+    return result;
+}
+
+SDVec3 sd_mat4_transform_point(SDMat4 m, SDVec3 v) {
+    SDVec3 result = sd_vec4_to_vec3(m * Vec4(v.x, v.y, v.z, 1.0f));
+    return result;
+}
 
 //==================================================================
 // Quaternions

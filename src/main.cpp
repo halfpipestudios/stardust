@@ -1,5 +1,46 @@
 #include <stardust.h>
 
+
+struct Camera {
+    SDVec3 pos;
+    SDVec2 rot;
+    SDVec3 front;
+    SDVec3 right;
+    SDVec3 up;
+    f32 dist;
+};
+
+Camera camera_create(SDVec3 target) {
+    Camera camera;
+    camera.front = SDVec3(0, 0, -1);
+    camera.right = SDVec3(1, 0, 0);
+    camera.up = SDVec3(0, 1, 0);
+    camera.dist = 10.0f;
+    camera.pos = target - (camera.front * camera.dist);
+    return camera;
+}
+
+void camera_update(Camera *camera, SDVec3 target, f32 dt) {
+
+    camera->rot.y -= sd_get_right_stick_x() * 2.5f * dt;
+    camera->rot.x += sd_get_right_stick_y() * 2.5f * dt;
+
+    if (camera->rot.x >  (89.0f/180.0f) * (f32)SD_PI)
+        camera->rot.x =  (89.0f/180.0f) * (f32)SD_PI;
+    if (camera->rot.x < -(89.0f/180.0f) * (f32)SD_PI)
+        camera->rot.x = -(89.0f/180.0f) * (f32)SD_PI;
+    
+    camera->front = SDVec3(0, 0, -1);
+    camera->front = sd_mat4_transform_vector(sd_mat4_rotation_x(camera->rot.x), camera->front);
+    camera->front = sd_mat4_transform_vector(sd_mat4_rotation_y(camera->rot.y), camera->front);
+    sd_vec3_normalize(camera->front);
+    camera->right = sd_vec3_normalized(sd_vec3_cross(camera->front, SDVec3(0, 1, 0)));
+    camera->up = sd_vec3_normalized(sd_vec3_cross(camera->right, camera->front));
+
+    camera->pos = target - (camera->front * camera->dist);
+}
+
+
 i32 main() {
     // TODO: pass the memory size here
     sd_init("Stardust Demo", 960, 540);
@@ -51,6 +92,8 @@ i32 main() {
     SDParticleForceRegistry *fg_registry = sd_particle_force_registry_create(&arena, 100);
     sd_particle_force_registry_add(fg_registry, &ball, &fg_gravity);
 
+    Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));
+
     f32 fps_target = 1.0f / 60.0f;
 
     f64 last_time = sd_get_time();
@@ -66,23 +109,23 @@ i32 main() {
 
         f32 dt = (f32)(current_time - last_time);
         
-        SD_INFO("FPS: %lf", 1.0f/dt);
+        //SD_INFO("FPS: %lf", 1.0f/dt);
 
         last_time = current_time;
 
         sd_process_events();
 
-        SDVec3 front = SDVec3(0, 0, 1);
-        SDVec3 right = SDVec3(1, 0, 0);
-
+       
+        SDVec3 right = camera.right;
+        SDVec3 front = sd_vec3_normalized(sd_vec3_cross(SDVec3(0, 1, 0),right));
 
         SDVec3 force = SDVec3(0, 0, 0);
 
         if(sd_key_down(SD_KEY_W)) {
-            force += front * -1.0f;
+            force += front;
         }
         if(sd_key_down(SD_KEY_S)) {
-            force += front;
+            force -= front;
         }
         if(sd_key_down(SD_KEY_D)) {
             force += right;
@@ -91,7 +134,7 @@ i32 main() {
             force -= right;
         }
 
-        force -= front * sd_get_left_stick_y();
+        force += front * sd_get_left_stick_y();
         force += right * sd_get_left_stick_x();
         force = force * 50.0f;
 
@@ -103,18 +146,22 @@ i32 main() {
         sd_particle_intergrate(&hero, dt);
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
-        f32 angle = atan2(hero.velocity.x, hero.velocity.z) - atan2(front.x, front.z);
+
+        f32 angle = sd_vec3_angle(front, sd_vec3_normalized(hero.velocity));
         angle = (angle/SD_PI) *180.0f;
 
-        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_back, walk_right, walk_front, idle, angle, speed, dt);
+        if(std::fabs(sd_get_left_stick_x()) > 0.0f)
+            angle *= sd_get_left_stick_x() / std::fabs(sd_get_left_stick_x());
 
-        sd_set_view_mat(sd_mat4_lookat(hero.position + SDVec3(0, 5, 10), hero.position + SDVec3(0, 4, 0), SDVec3(0, 1, 0)));
+        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, idle, angle, speed, dt);
 
+        camera_update(&camera, hero.position, dt);
 
+        sd_set_view_mat(sd_mat4_lookat(camera.pos, hero.position + SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
         sd_set_texture(warrior_tex);
-        sd_set_world_mat(sd_mat4_translation(hero.position) * sd_mat4_scale(3, 3, 3) * sd_mat4_rotation_y(SD_PI));
+        sd_set_world_mat(sd_mat4_translation(hero.position) * sd_mat4_scale(3, 3, 3) * sd_mat4_rotation_y(SD_PI + camera.rot.y));
         sd_draw_anim_vertex_buffer(warior_skeleton->final_bone_matrices, warrior->vbuffer);
 
         sd_set_texture(floor_tex);
@@ -125,6 +172,7 @@ i32 main() {
         sd_set_world_mat(sd_mat4_translation(0, 0, 0) * sd_mat4_scale(10, 1, 10));
         sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
 
+        //sd_draw_line(SDVec3(0, 2, 0), hero.position + SDVec3(0, 2, 0), 0, 1, 0);
 
         sd_present();
         sd_store_input_for_next_frame();
