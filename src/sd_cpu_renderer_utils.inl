@@ -99,6 +99,7 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
     //===========================================================================================
     // TODO: Fix back face culling (view dir is probably wrong) 
     //===========================================================================================
+    /*
     SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
     SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
     SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
@@ -107,8 +108,9 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
     SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f; // global variable view ...
     SDVec3 camera_ray = camera_origin - a;
-    if(sd_vec3_dot(normal, camera_ray) < 0) return;
+    if(sd_vec3_dot(normal, camera_ray) < 0) return; */
     //===========================================================================================
+    
 
     u32 *backBuffer = sd_back_buffer();
     f32 *depthBuffer = sd_depth_buffer();    
@@ -142,10 +144,10 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
                         clippedVertexA, clippedUvsA, &clippedVertexACount,
                         2,  1.0f);
 
-    __m128 zero = _mm_set1_ps(0.0f);
-    __m128 one  = _mm_set1_ps(1.0f);
-    __m128 texture_w = _mm_set1_ps((f32)texture->w);
-    __m128 texture_h = _mm_set1_ps((f32)texture->h);
+    __m256 zero = _mm256_set1_ps(0.0f);
+    __m256 one  = _mm256_set1_ps(1.0f);
+    __m256 texture_w = _mm256_set1_ps((f32)texture->w);
+    __m256 texture_h = _mm256_set1_ps((f32)texture->h);
 
     for(int i = 0; i < clippedVertexACount - 2; i++) {
         Vec4 finalA = clippedVertexA[0];
@@ -181,104 +183,104 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
 
         if((min_x >= max_x) || (min_y >= max_y)) continue;
 
-        if(min_x & 3) {
-            min_x = min_x & ~3;
+        if(min_x & 7) {
+            min_x = min_x & ~7;
         }
-        if(max_x & 3) {
-            max_x = (max_x & ~3) + 4;
+        if(max_x & 7) {
+            max_x = (max_x & ~7) + 8;
         }
         
         // Vertices
-        __m128 vert_a_x = _mm_set1_ps(finalA.x);
-        __m128 vert_a_y = _mm_set1_ps(finalA.y);
-        __m128 vert_a_inv_z = _mm_set1_ps(1.0f/finalA.w);
-        __m128 vert_b_x = _mm_set1_ps(finalB.x);
-        __m128 vert_b_y = _mm_set1_ps(finalB.y);
-        __m128 vert_b_inv_z = _mm_set1_ps(1.0f/finalB.w);
-        __m128 vert_c_x = _mm_set1_ps(finalC.x);
-        __m128 vert_c_y = _mm_set1_ps(finalC.y);
-        __m128 vert_c_inv_z = _mm_set1_ps(1.0f/finalC.w);
+        __m256 vert_a_x = _mm256_set1_ps(finalA.x);
+        __m256 vert_a_y = _mm256_set1_ps(finalA.y);
+        __m256 vert_a_inv_z = _mm256_set1_ps(1.0f/finalA.w);
+        __m256 vert_b_x = _mm256_set1_ps(finalB.x);
+        __m256 vert_b_y = _mm256_set1_ps(finalB.y);
+        __m256 vert_b_inv_z = _mm256_set1_ps(1.0f/finalB.w);
+        __m256 vert_c_x = _mm256_set1_ps(finalC.x);
+        __m256 vert_c_y = _mm256_set1_ps(finalC.y);
+        __m256 vert_c_inv_z = _mm256_set1_ps(1.0f/finalC.w);
         // Uvs
-        __m128 uv_a_x = _mm_set1_ps(finalUvA.x);
-        __m128 uv_a_y = _mm_set1_ps(finalUvA.y);
-        __m128 uv_b_x = _mm_set1_ps(finalUvB.x);
-        __m128 uv_b_y = _mm_set1_ps(finalUvB.y);
-        __m128 uv_c_x = _mm_set1_ps(finalUvC.x);
-        __m128 uv_c_y = _mm_set1_ps(finalUvC.y);
+        __m256 uv_a_x = _mm256_set1_ps(finalUvA.x);
+        __m256 uv_a_y = _mm256_set1_ps(finalUvA.y);
+        __m256 uv_b_x = _mm256_set1_ps(finalUvB.x);
+        __m256 uv_b_y = _mm256_set1_ps(finalUvB.y);
+        __m256 uv_c_x = _mm256_set1_ps(finalUvC.x);
+        __m256 uv_c_y = _mm256_set1_ps(finalUvC.y);
         // Barycentric
-        __m128 v0x = _mm_sub_ps(vert_b_x, vert_a_x);
-        __m128 v0y = _mm_sub_ps(vert_b_y, vert_a_y);
-        __m128 v1x = _mm_sub_ps(vert_c_x, vert_a_x);
-        __m128 v1y = _mm_sub_ps(vert_c_y, vert_a_y);
-        __m128 d00 = _mm_add_ps(_mm_mul_ps(v0x, v0x), _mm_mul_ps(v0y, v0y));
-        __m128 d10 = _mm_add_ps(_mm_mul_ps(v1x, v0x), _mm_mul_ps(v1y, v0y));
-        __m128 d11 = _mm_add_ps(_mm_mul_ps(v1x, v1x), _mm_mul_ps(v1y, v1y));
-        __m128 denom = _mm_sub_ps(_mm_mul_ps(d00, d11), _mm_mul_ps(d10, d10));
+        __m256 v0x = _mm256_sub_ps(vert_b_x, vert_a_x);
+        __m256 v0y = _mm256_sub_ps(vert_b_y, vert_a_y);
+        __m256 v1x = _mm256_sub_ps(vert_c_x, vert_a_x);
+        __m256 v1y = _mm256_sub_ps(vert_c_y, vert_a_y);
+        __m256 d00 = _mm256_add_ps(_mm256_mul_ps(v0x, v0x), _mm256_mul_ps(v0y, v0y));
+        __m256 d10 = _mm256_add_ps(_mm256_mul_ps(v1x, v0x), _mm256_mul_ps(v1y, v0y));
+        __m256 d11 = _mm256_add_ps(_mm256_mul_ps(v1x, v1x), _mm256_mul_ps(v1y, v1y));
+        __m256 denom = _mm256_sub_ps(_mm256_mul_ps(d00, d11), _mm256_mul_ps(d10, d10));
 
 
         for(i32 y = min_y; y <= max_y; y++) {
-            __m128 test_y = _mm_set1_ps(y);
-            for(i32 x = min_x; x <= max_x; x += 4) {
+            __m256 test_y = _mm256_set1_ps((f32)y);
+            for(i32 x = min_x; x <= max_x; x += 8) {
+
                 u32 *pixel_pt = backBuffer + (y * sd_window_width() + x);
-                __m128i original_dest = _mm_load_si128((__m128i *)pixel_pt);
-
+                __m256i original_dest = _mm256_load_si256((__m256i *)pixel_pt);
                 f32 *depth_pt = depthBuffer + (y * sd_window_width() + x);
-                __m128 depth = _mm_load_ps(depth_pt);
+                __m256 depth = _mm256_load_ps(depth_pt);
+                __m256 test_x = _mm256_set_ps((f32)x + 7, (f32)x + 6, (f32)x + 5, (f32)x + 4,
+                                              (f32)x + 3, (f32)x + 2, (f32)x + 1, (f32)x + 0);
 
-                __m128 test_x = _mm_set_ps(x + 3, x + 2, x + 1, x);
+                __m256 ax = _mm256_sub_ps(vert_a_x, test_x);
+                __m256 ay = _mm256_sub_ps(vert_a_y, test_y); 
+                __m256 bx = _mm256_sub_ps(vert_b_x, test_x);
+                __m256 by = _mm256_sub_ps(vert_b_y, test_y); 
+                __m256 cx = _mm256_sub_ps(vert_c_x, test_x);
+                __m256 cy = _mm256_sub_ps(vert_c_y, test_y); 
 
-                __m128 ax = _mm_sub_ps(vert_a_x, test_x);
-                __m128 ay = _mm_sub_ps(vert_a_y, test_y); 
-                __m128 bx = _mm_sub_ps(vert_b_x, test_x);
-                __m128 by = _mm_sub_ps(vert_b_y, test_y); 
-                __m128 cx = _mm_sub_ps(vert_c_x, test_x);
-                __m128 cy = _mm_sub_ps(vert_c_y, test_y); 
+                __m256 ab = _mm256_sub_ps(_mm256_mul_ps(ax, by), _mm256_mul_ps(ay, bx));
+                __m256 bc = _mm256_sub_ps(_mm256_mul_ps(bx, cy), _mm256_mul_ps(by, cx));
+                __m256 ca = _mm256_sub_ps(_mm256_mul_ps(cx, ay), _mm256_mul_ps(cy, ax));
 
-                __m128 ab = _mm_sub_ps(_mm_mul_ps(ax, by), _mm_mul_ps(ay, bx));
-                __m128 bc = _mm_sub_ps(_mm_mul_ps(bx, cy), _mm_mul_ps(by, cx));
-                __m128 ca = _mm_sub_ps(_mm_mul_ps(cx, ay), _mm_mul_ps(cy, ax));
+                __m256 test_ab = _mm256_cmp_ps(ab, zero, _CMP_GE_OS);
+                __m256 test_bc = _mm256_cmp_ps(bc, zero, _CMP_GE_OS);
+                __m256 test_ca = _mm256_cmp_ps(ca, zero, _CMP_GE_OS);
+                __m256 write_mask = _mm256_and_ps(_mm256_and_ps(test_ab, test_bc), test_ca);
+                if(_mm256_movemask_ps(write_mask)) {
+                    __m256i write_maski = _mm256_castps_si256(write_mask);
 
-                __m128 test_ab = _mm_cmpge_ps(ab, zero);
-                __m128 test_bc = _mm_cmpge_ps(bc, zero);
-                __m128 test_ca = _mm_cmpge_ps(ca, zero);
-                __m128 write_mask = _mm_and_ps(_mm_and_ps(test_ab, test_bc), test_ca);
-                if(_mm_movemask_ps(write_mask)) {
-                    __m128i write_maski = _mm_castps_si128(write_mask);
+                    __m256 v2x = _mm256_sub_ps(test_x, vert_a_x);
+                    __m256 v2y = _mm256_sub_ps(test_y, vert_a_y);
+                    __m256 d20 = _mm256_add_ps(_mm256_mul_ps(v2x, v0x), _mm256_mul_ps(v2y, v0y));
+                    __m256 d21 = _mm256_add_ps(_mm256_mul_ps(v2x, v1x), _mm256_mul_ps(v2y, v1y));
+                    __m256 gamma = _mm256_div_ps(_mm256_sub_ps(_mm256_mul_ps(d20, d11), _mm256_mul_ps(d10, d21)), denom);
+                    __m256 beta =  _mm256_div_ps(_mm256_sub_ps(_mm256_mul_ps(d00, d21), _mm256_mul_ps(d20, d10)), denom);
+                    __m256 alpha = _mm256_sub_ps(one, gamma);
+                    alpha = _mm256_sub_ps(alpha, beta);
 
-                    __m128 v2x = _mm_sub_ps(test_x, vert_a_x);
-                    __m128 v2y = _mm_sub_ps(test_y, vert_a_y);
-                    __m128 d20 = _mm_add_ps(_mm_mul_ps(v2x, v0x), _mm_mul_ps(v2y, v0y));
-                    __m128 d21 = _mm_add_ps(_mm_mul_ps(v2x, v1x), _mm_mul_ps(v2y, v1y));
-                    __m128 gamma = _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d20, d11), _mm_mul_ps(d10, d21)), denom);
-                    __m128 beta =  _mm_div_ps(_mm_sub_ps(_mm_mul_ps(d00, d21), _mm_mul_ps(d20, d10)), denom);
-                    __m128 alpha = _mm_sub_ps(one, gamma);
-                    alpha = _mm_sub_ps(alpha, beta);
+                    __m256 inv_z = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(vert_a_inv_z, alpha), _mm256_mul_ps(vert_b_inv_z, gamma)), _mm256_mul_ps(vert_c_inv_z, beta));
+                    __m256 depth_test_mask = _mm256_cmp_ps(inv_z, depth, _CMP_GE_OS);
 
-                    __m128 inv_z = _mm_add_ps(_mm_add_ps(_mm_mul_ps(vert_a_inv_z, alpha), _mm_mul_ps(vert_b_inv_z, gamma)), _mm_mul_ps(vert_c_inv_z, beta));
-                    __m128 depth_test_mask = _mm_cmpge_ps(inv_z, depth);
-
-                    if(_mm_movemask_ps(depth_test_mask)) {
-                        __m128i depth_test_maski = _mm_castps_si128(depth_test_mask);
+                    if(_mm256_movemask_ps(depth_test_mask)) {
+                        __m256i depth_test_maski = _mm256_castps_si256(depth_test_mask);
 
                         // Update the writeMask with the new information
-                        write_maski = _mm_and_si128(write_maski, depth_test_maski);
-                        write_mask = _mm_and_ps(write_mask, depth_test_mask);
+                        write_maski = _mm256_and_si256(write_maski, depth_test_maski);
+                        write_mask = _mm256_and_ps(write_mask, depth_test_mask);
 
-                        __m128 inv_u_a = _mm_mul_ps(alpha, _mm_mul_ps(uv_a_x, vert_a_inv_z));
-                        __m128 inv_u_b = _mm_mul_ps(gamma, _mm_mul_ps(uv_b_x, vert_b_inv_z));
-                        __m128 inv_u_c = _mm_mul_ps(beta,  _mm_mul_ps(uv_c_x, vert_c_inv_z));
-                        __m128 int_u = _mm_div_ps(_mm_add_ps(_mm_add_ps(inv_u_a, inv_u_b), inv_u_c), inv_z);
+                        __m256 inv_u_a = _mm256_mul_ps(alpha, _mm256_mul_ps(uv_a_x, vert_a_inv_z));
+                        __m256 inv_u_b = _mm256_mul_ps(gamma, _mm256_mul_ps(uv_b_x, vert_b_inv_z));
+                        __m256 inv_u_c = _mm256_mul_ps(beta,  _mm256_mul_ps(uv_c_x, vert_c_inv_z));
+                        __m256 int_u = _mm256_div_ps(_mm256_add_ps(_mm256_add_ps(inv_u_a, inv_u_b), inv_u_c), inv_z);
 
-                        __m128 inv_v_a = _mm_mul_ps(alpha, _mm_mul_ps(uv_a_y, vert_a_inv_z));
-                        __m128 inv_v_b = _mm_mul_ps(gamma, _mm_mul_ps(uv_b_y, vert_b_inv_z));
-                        __m128 inv_v_c = _mm_mul_ps(beta,  _mm_mul_ps(uv_c_y, vert_c_inv_z));
-                        __m128 int_v = _mm_div_ps(_mm_add_ps(_mm_add_ps(inv_v_a, inv_v_b), inv_v_c), inv_z);
+                        __m256 inv_v_a = _mm256_mul_ps(alpha, _mm256_mul_ps(uv_a_y, vert_a_inv_z));
+                        __m256 inv_v_b = _mm256_mul_ps(gamma, _mm256_mul_ps(uv_b_y, vert_b_inv_z));
+                        __m256 inv_v_c = _mm256_mul_ps(beta,  _mm256_mul_ps(uv_c_y, vert_c_inv_z));
+                        __m256 int_v = _mm256_div_ps(_mm256_add_ps(_mm256_add_ps(inv_v_a, inv_v_b), inv_v_c), inv_z);
 
-                        __m128i u = _mm_cvtps_epi32(_mm_mul_ps(int_u, texture_w));
-                        __m128i v = _mm_cvtps_epi32(_mm_mul_ps(int_v, texture_h));
+                        __m256i u = _mm256_cvtps_epi32(_mm256_mul_ps(int_u, texture_w));
+                        __m256i v = _mm256_cvtps_epi32(_mm256_mul_ps(int_v, texture_h));
 
-                        __m128i color;
-                        for(i32 j = 0; j < 4; ++j) {
+                        __m256i color;
+                        for(i32 j = 0; j < 8; ++j) {
                             i32 textureX = Mi(u, j);
                             i32 textureY = Mi(v, j);
                             if(textureX >= texture->w) {
@@ -290,10 +292,10 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
                             Mi(color, j) = texture->data[textureY * texture->w + textureX];
                         }
 
-                        __m128i color_masked_out = _mm_or_si128(_mm_and_si128(write_maski, color), _mm_andnot_si128(write_maski, original_dest));
-                        __m128 depth_mask_out = _mm_or_ps(_mm_and_ps(write_mask, inv_z), _mm_andnot_ps(write_mask, depth));
-                        _mm_store_si128((__m128i *)pixel_pt, color_masked_out);
-                        _mm_store_ps(depth_pt, depth_mask_out);
+                        __m256i color_masked_out = _mm256_or_si256(_mm256_and_si256(write_maski, color), _mm256_andnot_si256(write_maski, original_dest));
+                        __m256 depth_mask_out = _mm256_or_ps(_mm256_and_ps(write_mask, inv_z), _mm256_andnot_ps(write_mask, depth));
+                        _mm256_store_si256((__m256i *)pixel_pt, color_masked_out);
+                        _mm256_store_ps(depth_pt, depth_mask_out);
                     }
                 }
 

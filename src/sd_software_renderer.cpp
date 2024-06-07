@@ -22,11 +22,11 @@ void sd_clear_back_buffer(f32 r_, f32 g_, f32 b_) {
     u8 g = (u8)(g_ * 255.0f);
     u8 b = (u8)(b_ * 255.0f);
     u32 color = (a << 24) | (r << 16) | (g << 8) | b;
-    __m128i clear_color = _mm_set1_epi32(color);
-    __m128 zero = _mm_set1_ps(0.0f);
-    for(int i = 0; i < sd_window_width() * sd_window_height(); i += 4) {
-        _mm_store_si128((__m128i *)(sd_back_buffer() + i), clear_color);
-        _mm_store_ps(sd_depth_buffer() + i, zero);
+    __m256i clear_color = _mm256_set1_epi32(color);
+    __m256 zero = _mm256_set1_ps(0.0f);
+    for(int i = 0; i < sd_window_width() * sd_window_height(); i += 8) {
+        _mm256_store_si256((__m256i *)(sd_back_buffer() + i), clear_color);
+        _mm256_store_ps(sd_depth_buffer() + i, zero);
     }
 }
 
