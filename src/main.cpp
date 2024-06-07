@@ -28,11 +28,13 @@ i32 main() {
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
+        /*
         f32 elapsed_time = current_time - last_time;
         while(elapsed_time < fps_target) {
             current_time = sd_get_time();
             elapsed_time = current_time - last_time;
         }
+        */
         
 
         f32 dt = (f32)(current_time - last_time);

@@ -181,30 +181,13 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
 
         if((min_x >= max_x) || (min_y >= max_y)) continue;
 
-        __m128i start_clip_mask = _mm_set1_epi8(-1);
-        __m128i end_clip_mask = _mm_set1_epi8(-1);
-        __m128i start_clip_masks[] = {
-            _mm_slli_si128(start_clip_mask, 0*4),
-            _mm_slli_si128(start_clip_mask, 1*4),
-            _mm_slli_si128(start_clip_mask, 2*4),
-            _mm_slli_si128(start_clip_mask, 3*4),
-        };
-        __m128i end_clip_masks[] = {
-            _mm_srli_si128(end_clip_mask, 3*4),
-            _mm_srli_si128(end_clip_mask, 2*4),
-            _mm_srli_si128(end_clip_mask, 1*4),
-            _mm_srli_si128(end_clip_mask, 0*4),
-        };
-
         if(min_x & 3) {
-            start_clip_mask = start_clip_masks[min_x & 3];
             min_x = min_x & ~3;
         }
         if(max_x & 3) {
-            end_clip_mask = end_clip_masks[max_x & 3];
             max_x = (max_x & ~3) + 4;
         }
-
+        
         // Vertices
         __m128 vert_a_x = _mm_set1_ps(finalA.x);
         __m128 vert_a_y = _mm_set1_ps(finalA.y);
@@ -235,7 +218,6 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
 
         for(i32 y = min_y; y <= max_y; y++) {
             __m128 test_y = _mm_set1_ps(y);
-            __m128i clip_mask = start_clip_mask;
             for(i32 x = min_x; x <= max_x; x += 4) {
                 u32 *pixel_pt = backBuffer + (y * sd_window_width() + x);
                 __m128i original_dest = _mm_load_si128((__m128i *)pixel_pt);
@@ -281,8 +263,6 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
                         // Update the writeMask with the new information
                         write_maski = _mm_and_si128(write_maski, depth_test_maski);
                         write_mask = _mm_and_ps(write_mask, depth_test_mask);
-                        write_maski = _mm_and_si128(write_maski, clip_mask);
-                        write_mask = _mm_and_ps(write_mask, _mm_castsi128_ps(clip_mask));
 
                         __m128 inv_u_a = _mm_mul_ps(alpha, _mm_mul_ps(uv_a_x, vert_a_inv_z));
                         __m128 inv_u_b = _mm_mul_ps(gamma, _mm_mul_ps(uv_b_x, vert_b_inv_z));
@@ -316,12 +296,7 @@ void proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 pr
                         _mm_store_ps(depth_pt, depth_mask_out);
                     }
                 }
-                
-                if((x + 4) >= max_x) {
-                    clip_mask = end_clip_mask;
-                } else {
-                    clip_mask = _mm_set1_epi8(-1);
-                }
+
             }
         }
     }
