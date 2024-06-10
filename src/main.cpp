@@ -147,13 +147,15 @@ i32 main() {
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
 
-        f32 angle = sd_vec3_angle(front, sd_vec3_normalized(hero.velocity));
+        SDMat4 hero_transform = sd_mat4_translation(hero.position) * sd_mat4_rotation_y(SD_PI + camera.rot.y);
+        SDVec3 local_vel = sd_mat4_transform_vector(sd_mat4_inverse(hero_transform), hero.velocity);
+        SDVec3 local_front = SDVec3(0, 0, -1);
+        f32 angle = atan2(local_vel.x, local_vel.z);
         angle = (angle/SD_PI) *180.0f;
 
-        if(std::fabs(sd_get_left_stick_x()) > 0.0f)
-            angle *= sd_get_left_stick_x() / std::fabs(sd_get_left_stick_x());
+        SD_INFO("angle: %f", angle);
 
-        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_left, walk_front, walk_right, walk_back, idle, angle, speed, dt);
+        sd_skeleton_interpolate_4_animations(warior_skeleton, walk_right, walk_front, walk_left, walk_back, idle, angle, speed, dt);
 
         camera_update(&camera, hero.position, dt);
 
@@ -161,7 +163,7 @@ i32 main() {
         sd_clear_back_buffer(0.2f, 0.3f, 0.4f);
 
         sd_set_texture(warrior_tex);
-        sd_set_world_mat(sd_mat4_translation(hero.position) * sd_mat4_scale(3, 3, 3) * sd_mat4_rotation_y(SD_PI + camera.rot.y));
+        sd_set_world_mat(hero_transform *  sd_mat4_scale(3, 3, 3));
         sd_draw_anim_vertex_buffer(warior_skeleton->final_bone_matrices, warrior->vbuffer);
 
         sd_set_texture(floor_tex);

@@ -321,11 +321,6 @@ f32 sd_remap(f32 i_min, f32 i_max, f32 o_min, f32 o_max, f32 v) {
         f32 dot = sd_vec3_dot(a, b);
         f32 len = std::sqrtf(a_len_sq) * std::sqrtf(b_len_sq);
         f32 result = std::acosf(dot / len);
-
-        if(std::isnan(result)) {
-            result = 0;
-        }
-
         return result;
     }
 
