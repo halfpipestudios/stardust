@@ -100,16 +100,17 @@ i32 main() {
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
+#if 0
         f32 elapsed_time = current_time - last_time;
         while(elapsed_time < fps_target) {
             current_time = sd_get_time();
             elapsed_time = current_time - last_time;
         }
-        
+#endif   
 
         f32 dt = (f32)(current_time - last_time);
         
-        //SD_INFO("FPS: %lf", 1.0f/dt);
+        SD_INFO("FPS: %lf", 1.0f/dt);
 
         last_time = current_time;
 
@@ -152,8 +153,6 @@ i32 main() {
         SDVec3 local_front = SDVec3(0, 0, -1);
         f32 angle = atan2(local_vel.x, local_vel.z);
         angle = (angle/SD_PI) *180.0f;
-
-        SD_INFO("angle: %f", angle);
 
         sd_skeleton_interpolate_4_animations(warior_skeleton, walk_right, walk_front, walk_left, walk_back, idle, angle, speed, dt);
 

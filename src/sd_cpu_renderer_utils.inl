@@ -97,19 +97,19 @@ static void HomogenousClipping(Vec4 *srcVertices, SDVec2 *srcUvs, int32_t srcCou
 static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformVertex, SDMat4 proj, SDTexture *texture) {
 
     //===========================================================================================
-    // TODO: Fix back face culling (view dir is probably wrong) 
+    // back face culling
     //===========================================================================================
-    /*
+    
     SDVec3 a = sd_vec4_to_vec3(transformVertex[0]);
     SDVec3 b = sd_vec4_to_vec3(transformVertex[1]);
     SDVec3 c = sd_vec4_to_vec3(transformVertex[2]);
     SDVec3 ab = b - a;
     SDVec3 ac = c - a;
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 camera_origin = sd_mat4_get_col_as_vec3(view, 3) * -1.0f; // global variable view ...
-    SDVec3 camera_ray = camera_origin - a;
-    if(sd_vec3_dot(normal, camera_ray) < 0) return; */
-    //===========================================================================================
+    SDVec3 camera_origin = SDVec3(); // global variable view ...
+    SDVec3 camera_ray = sd_vec3_normalized(camera_origin - a);
+    if(sd_vec3_dot(normal, camera_ray) < 0) return;
+    
     
 
     u32 *backBuffer = sd_back_buffer();
