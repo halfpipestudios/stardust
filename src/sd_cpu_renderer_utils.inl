@@ -90,6 +90,44 @@ static void HomogenousClipping(Vec4 *srcVertices, SDVec2 *srcUvs, int32_t srcCou
     }
 }
 
+static void HomogenousClipping(Vec4 *srcVertices, int32_t srcCount, 
+                                Vec4 *dstVertices, int32_t *dstCount,
+                                int32_t index, float sign) {
+    *dstCount = 0;
+
+    Vec4 prevVert = srcVertices[srcCount - 1];
+    float prevComponent = prevVert[index] * sign;
+    bool prevInside = prevComponent <= prevVert.w;
+
+    Vec4 currentVert = srcVertices[0];
+    float currentComponent = currentVert[index] * sign;
+    bool currentInside = currentComponent <= currentVert.w;
+
+    if(currentInside ^ prevInside) {
+        float t = (prevVert.w - prevComponent) / ((prevVert.w - prevComponent) - (currentVert.w - currentComponent));
+        Vec4 newVertex = {
+            (1.0f - t) * prevVert.x + t * currentVert.x,
+            (1.0f - t) * prevVert.y + t * currentVert.y, 
+            (1.0f - t) * prevVert.z + t * currentVert.z, 
+            (1.0f - t) * prevVert.w + t * currentVert.w  
+        };
+        dstVertices[*dstCount] = newVertex;
+        *dstCount = *dstCount + 1;
+    }
+
+    if(currentInside) {
+        dstVertices[*dstCount] = currentVert;
+        *dstCount = *dstCount + 1;
+    }
+
+    if(prevInside) {
+        dstVertices[*dstCount] = prevVert;
+        *dstCount = *dstCount + 1;
+    }  
+
+}
+
+
 #define M(a, i) ((f32 *)&(a))[i]
 #define Mi(a, i) ((i32 *)&(a))[i]
 #define Mu(a, i) ((u32 *)&(a))[i]
@@ -106,12 +144,10 @@ static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformV
     SDVec3 ab = b - a;
     SDVec3 ac = c - a;
     SDVec3 normal = sd_vec3_normalized(sd_vec3_cross(ab, ac));
-    SDVec3 camera_origin = SDVec3(); // global variable view ...
+    SDVec3 camera_origin = SDVec3();
     SDVec3 camera_ray = sd_vec3_normalized(camera_origin - a);
     if(sd_vec3_dot(normal, camera_ray) < 0) return;
     
-    
-
     u32 *backBuffer = sd_back_buffer();
     f32 *depthBuffer = sd_depth_buffer();    
 
@@ -178,8 +214,6 @@ static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformV
 
         max_x = SD_MIN(max_x, sd_window_width() - 1);
         max_y = SD_MIN(max_y, sd_window_height() - 1);
-
-        // TODO: clip to the tile ...
 
         if((min_x >= max_x) || (min_y >= max_y)) continue;
 
@@ -313,8 +347,33 @@ static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32
         transform_vertex[i] = proj * Vec4(transform_vertex[i].x, transform_vertex[i].y, transform_vertex[i].z, 1.0f);
     }
 
-    Vec4 a = transform_vertex[0];
-    Vec4 b = transform_vertex[1];
+    int32_t clippedVertexACount = 2;
+    Vec4 clippedVertexA[2] = { transform_vertex[0], transform_vertex[1] };
+    int32_t clippedVertexBCount = 0;
+    Vec4 clippedVertexB[2];
+    HomogenousClipping(clippedVertexA, clippedVertexACount,
+                        clippedVertexB, &clippedVertexBCount,
+                        0, -1.0f);
+    HomogenousClipping(clippedVertexB, clippedVertexBCount,
+                        clippedVertexA, &clippedVertexACount,
+                        0,  1.0f);
+    HomogenousClipping(clippedVertexA, clippedVertexACount,
+                        clippedVertexB, &clippedVertexBCount,
+                        1, -1.0f);
+    HomogenousClipping(clippedVertexB, clippedVertexBCount,
+                        clippedVertexA, &clippedVertexACount,
+                        1,  1.0f);
+    HomogenousClipping(clippedVertexA, clippedVertexACount,
+                        clippedVertexB, &clippedVertexBCount,
+                        2, -1.0f);
+    HomogenousClipping(clippedVertexB, clippedVertexBCount,
+                        clippedVertexA, &clippedVertexACount,
+                        2,  1.0f);
+
+    if(clippedVertexACount <= 1) return;
+
+    Vec4 a = clippedVertexA[0];
+    Vec4 b = clippedVertexA[1];
 
     // perpective divide
     a.x /= a.w; a.y /= a.w;
@@ -325,6 +384,13 @@ static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32
     a += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
     b *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
     b += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
+
+    a.x = SD_MAX(SD_MIN(a.x, sd_window_width() - 1), 0.0f);
+    a.y = SD_MAX(SD_MIN(a.y, sd_window_height() - 1), 0.0f);
+
+    b.x = SD_MAX(SD_MIN(b.x, sd_window_width() - 1), 0.0f);
+    b.y = SD_MAX(SD_MIN(b.y, sd_window_height() - 1), 0.0f);
+
 
     i32 x_delta = (i32)(b.x - a.x);
     i32 y_delta = (i32)(b.y - a.y);
@@ -342,13 +408,11 @@ static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32
         f32 int_inv_z = ((1.0f/a.w) + ((1.0f/b.w) - (1.0f/a.w)) * t); 
 
         i32 window_width = sd_window_width();
-        i32 window_height = sd_window_height();
-        if(x >= 0 && x < (f32)window_width && y >= 0 && y < (f32)window_height) {
-            if(int_inv_z >= depthBuffer[(i32)y * window_width + (i32)x]) {
-                depthBuffer[(i32)y * window_width + (i32)x] = int_inv_z;
-                backBuffer[(i32)y * window_width + (i32)x] = color;
-            } 
+        if(int_inv_z >= depthBuffer[(i32)y * window_width + (i32)x]) {
+            depthBuffer[(i32)y * window_width + (i32)x] = int_inv_z;
+            backBuffer[(i32)y * window_width + (i32)x] = color;
         }
+
         x += x_inc;
         y += y_inc;
     }

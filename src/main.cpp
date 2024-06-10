@@ -93,6 +93,7 @@ i32 main() {
     sd_particle_force_registry_add(fg_registry, &ball, &fg_gravity);
 
     Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));
+    camera.rot.x = -SD_PI/4;
 
     f32 fps_target = 1.0f / 60.0f;
 
@@ -100,7 +101,7 @@ i32 main() {
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
-#if 0
+#if 1
         f32 elapsed_time = current_time - last_time;
         while(elapsed_time < fps_target) {
             current_time = sd_get_time();
@@ -173,7 +174,7 @@ i32 main() {
         sd_set_world_mat(sd_mat4_translation(0, 0, 0) * sd_mat4_scale(10, 1, 10));
         sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
 
-        //sd_draw_line(SDVec3(0, 2, 0), hero.position + SDVec3(0, 2, 0), 0, 1, 0);
+        sd_draw_line(SDVec3(0, 2, 0), hero.position + SDVec3(0, 2, 0), 0, 1, 0);
 
         sd_present();
         sd_store_input_for_next_frame();
