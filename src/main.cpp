@@ -77,23 +77,41 @@ i32 main() {
     hero.damping = 0.01f;
     sd_particle_set_mass(&hero, 2);
 
+    SDVec3 anchor = SDVec3(-10, 10, -10);
+    SDVec3 anchor1 = SDVec3(10, 10, -10);
 
     SDParticle ball;
-    ball.position = SDVec3(0, 10, 0);
+    ball.position = SDVec3(10, 10, -10);
     ball.velocity = SDVec3();
     ball.acceleration = SDVec3();
     ball.force_accum = SDVec3();
-    ball.damping = 0.5f;
-    sd_particle_set_mass(&ball, 1);
+    ball.damping = 0.7f;
+    sd_particle_set_mass(&ball, 0.5f);
 
     SDParticleForceGenerator fg_gravity{};
+    fg_gravity.type = SD_PFG_GRAVITY;
     fg_gravity.gravity.gravity = SDVec3(0, -9.8f, 0);
+
+    SDParticleForceGenerator fg_anchored_spring{};
+    fg_anchored_spring.type = SD_PFG_ANCHORED_SPRING;
+    fg_anchored_spring.anchored_spring.anchor = &anchor;
+    fg_anchored_spring.anchored_spring.spring_constant = 1.0f;
+    fg_anchored_spring.anchored_spring.rest_length = 2.0f;
+
+    SDParticleForceGenerator fg_anchored_spring1{};
+    fg_anchored_spring1.type = SD_PFG_ANCHORED_SPRING;
+    fg_anchored_spring1.anchored_spring.anchor = &anchor1;
+    fg_anchored_spring1.anchored_spring.spring_constant = 1.0f;
+    fg_anchored_spring1.anchored_spring.rest_length = 2.0f;
 
     SDParticleForceRegistry *fg_registry = sd_particle_force_registry_create(&arena, 100);
     sd_particle_force_registry_add(fg_registry, &ball, &fg_gravity);
+    sd_particle_force_registry_add(fg_registry, &ball, &fg_anchored_spring);
+    sd_particle_force_registry_add(fg_registry, &ball, &fg_anchored_spring1);
+
 
     Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));
-    camera.rot.x = -SD_PI/4;
+    camera.rot.x = -SD_PI/6;
 
     f32 fps_target = 1.0f / 60.0f;
 
@@ -151,7 +169,6 @@ i32 main() {
 
         SDMat4 hero_transform = sd_mat4_translation(hero.position) * sd_mat4_rotation_y(SD_PI + camera.rot.y);
         SDVec3 local_vel = sd_mat4_transform_vector(sd_mat4_inverse(hero_transform), hero.velocity);
-        SDVec3 local_front = SDVec3(0, 0, -1);
         f32 angle = atan2(local_vel.x, local_vel.z);
         angle = (angle/SD_PI) *180.0f;
 
@@ -167,14 +184,22 @@ i32 main() {
         sd_draw_anim_vertex_buffer(warior_skeleton->final_bone_matrices, warrior->vbuffer);
 
         sd_set_texture(floor_tex);
-        sd_set_world_mat(sd_mat4_translation(ball.position) * sd_mat4_scale(1, 1, 1));
+        sd_set_world_mat(sd_mat4_translation(ball.position));
+        sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
+
+        sd_set_world_mat(sd_mat4_translation(anchor));
+        sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
+
+        sd_set_world_mat(sd_mat4_translation(anchor1));
         sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
 
         sd_set_texture(sphere_tex);
         sd_set_world_mat(sd_mat4_translation(0, 0, 0) * sd_mat4_scale(10, 1, 10));
         sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
 
-        sd_draw_line(SDVec3(0, 2, 0), hero.position + SDVec3(0, 2, 0), 0, 1, 0);
+        sd_draw_line(anchor, ball.position, 0, 1, 0);
+        sd_draw_line(anchor1, ball.position, 0, 1, 0);
+
 
         sd_present();
         sd_store_input_for_next_frame();

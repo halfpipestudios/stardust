@@ -21,7 +21,9 @@ void sd_particle_add_force(SDParticle *p, SDVec3 &v);
 
 enum SDParticleForceGeneratorType {
     SD_PFG_GRAVITY,
-    SD_PFG_DRAG
+    SD_PFG_DRAG,
+    SD_PFG_SPRING,
+    SD_PFG_ANCHORED_SPRING,
 };
 
 struct SDParticleGravity {
@@ -33,19 +35,34 @@ struct SDParticleDrag {
     f32 k1, k2;
 };
 
+struct SDParticleSpring {
+    SDParticle *other;
+    f32 spring_constant;
+    f32 rest_length;
+};
+
+struct SDParticleAnchoredSpring {
+    SDVec3 *anchor;
+    f32 spring_constant;
+    f32 rest_length;
+};
+
 struct SDParticleForceGenerator {
     SDParticleForceGeneratorType type;
     union {
         SDParticleGravity gravity;
         SDParticleDrag    drag;
+        SDParticleSpring spring;
+        SDParticleAnchoredSpring anchored_spring;
     };
 };
 
 void sd_particle_gravity_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt);
 void sd_particle_drag_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt);
+void sd_particle_spring_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt);
+void sd_particle_anchored_spring_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt);
 
 void sd_particle_force_generator_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt);
-
 
 struct SDParticleForceRegistration {
     SDParticle *particle;

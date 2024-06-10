@@ -47,10 +47,36 @@ void sd_particle_drag_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt
     sd_particle_add_force(p, force);
 }
 
+void sd_particle_spring_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt) {
+    SDVec3 force = p->position - fg->spring.other->position;
+    // calculate the magnitude of the force
+    f32 magnitude = sd_vec3_len(force);
+    magnitude = std::fabs(magnitude - fg->spring.rest_length);
+    magnitude *= fg->spring.spring_constant;
+
+    sd_vec3_normalize(force);
+    force *= -magnitude;
+    sd_particle_add_force(p, force);
+}
+
+void sd_particle_anchored_spring_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt) {
+    SDVec3 force = p->position - *fg->anchored_spring.anchor;
+    // calculate the magnitude of the force
+    f32 magnitude = sd_vec3_len(force);
+    magnitude = std::fabs(magnitude - fg->spring.rest_length);
+    magnitude *= fg->spring.spring_constant;
+
+    sd_vec3_normalize(force);
+    force *= -magnitude;
+    sd_particle_add_force(p, force);
+}
+
 void sd_particle_force_generator_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt) {
     switch(fg->type) {
         case SD_PFG_GRAVITY: sd_particle_gravity_update(fg, p, dt); break;
         case SD_PFG_DRAG: sd_particle_drag_update(fg, p, dt); break;
+        case SD_PFG_SPRING: sd_particle_spring_update(fg, p, dt); break;
+        case SD_PFG_ANCHORED_SPRING: sd_particle_anchored_spring_update(fg, p, dt); break;
     }
 }
 
