@@ -103,6 +103,8 @@ static void HomogenousClipping(Vec4 *srcVertices, int32_t srcCount,
     float currentComponent = currentVert[index] * sign;
     bool currentInside = currentComponent <= currentVert.w;
 
+    if(srcCount == 0) return;
+
     if(currentInside ^ prevInside) {
         float t = (prevVert.w - prevComponent) / ((prevVert.w - prevComponent) - (currentVert.w - currentComponent));
         Vec4 newVertex = {
@@ -339,13 +341,10 @@ static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformV
 
 }
 
-static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32 r_, f32 g_, f32 b_) {
+static void line_clipping_and_razterization(Vec4 *transform_vertex, f32 r_, f32 g_, f32 b_) {
     u32 *backBuffer = sd_back_buffer();
     f32 *depthBuffer = sd_depth_buffer();    
     u32 color = RgbToUint32(r_, g_, b_, 1.0f);
-    for(int i = 0; i < 2; i++) {
-        transform_vertex[i] = proj * Vec4(transform_vertex[i].x, transform_vertex[i].y, transform_vertex[i].z, 1.0f);
-    }
 
     int32_t clippedVertexACount = 2;
     Vec4 clippedVertexA[2] = { transform_vertex[0], transform_vertex[1] };
@@ -370,7 +369,7 @@ static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32
                         clippedVertexA, &clippedVertexACount,
                         2,  1.0f);
 
-    if(clippedVertexACount <= 1) return;
+    if(clippedVertexACount < 2) return;
 
     Vec4 a = clippedVertexA[0];
     Vec4 b = clippedVertexA[1];
@@ -385,12 +384,10 @@ static void line_proj_and_razterization(Vec4 *transform_vertex, SDMat4 proj, f32
     b *= Vec4{h_window_width, h_window_height, 1.0f, 1.0f};
     b += Vec4{h_window_width, h_window_height, 0.0f, 0.0f};
 
-    a.x = SD_MAX(SD_MIN(a.x, sd_window_width() - 1), 0.0f);
-    a.y = SD_MAX(SD_MIN(a.y, sd_window_height() - 1), 0.0f);
-
-    b.x = SD_MAX(SD_MIN(b.x, sd_window_width() - 1), 0.0f);
-    b.y = SD_MAX(SD_MIN(b.y, sd_window_height() - 1), 0.0f);
-
+    a.x = SD_MIN(a.x, sd_window_width() - 1);
+    a.y = SD_MIN(a.y, sd_window_height() - 1);
+    b.x = SD_MIN(b.x, sd_window_width() - 1);
+    b.y = SD_MIN(b.y, sd_window_height() - 1);
 
     i32 x_delta = (i32)(b.x - a.x);
     i32 y_delta = (i32)(b.y - a.y);
@@ -450,9 +447,9 @@ static void DrawTriangleAnim(SDMat4 *pallete, SDVertex *vertices, SDMat4& view_w
 static void draw_line(SDVertex *vertices, SDMat4& view, SDMat4& proj, f32 r, f32 g, f32 b) {
     Vec4 transform_vertex[2];
     for(i32 i = 0; i < 2; i++) {
-        transform_vertex[i] = view * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
+        transform_vertex[i] = proj * view * Vec4(vertices[i].pos.x, vertices[i].pos.y, vertices[i].pos.z, 1.0f);
     }
-    line_proj_and_razterization(transform_vertex, proj, r, g, b);
+    line_clipping_and_razterization(transform_vertex, r, g, b);
 }
 
 
