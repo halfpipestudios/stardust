@@ -78,3 +78,12 @@ struct SDParticleForceRegistry {
 SDParticleForceRegistry *sd_particle_force_registry_create(SDArena *arena, i32 particle_count);
 void sd_particle_force_registry_add(SDParticleForceRegistry *registry, SDParticle *p, SDParticleForceGenerator *fg);
 void sd_particle_force_registry_update(SDParticleForceRegistry *registry, f32 dt);
+
+
+struct SDParticleContact {
+    SDParticle *particle[2];
+    f32 restitution;
+    SDVec3 contact_normal;
+};
+
+void sd_particle_contact_resolve(SDParticleContact *pc, f32 dt);
