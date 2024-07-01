@@ -370,6 +370,7 @@ static void sd_body_calculate_transform_matrix(SDRigidBody *body) {
 static void sd_body_transform_inertia_tensor(SDRigidBody *body) {
     SDMat3 world = sd_mat4_to_mat3(body->transform_matrix);
     SDMat3 inv_world = sd_mat3_transposed(world);
+    //SDMat3 inv_world = sd_mat3_inverse(world);
     body->inverse_inertia_tensor_world = world * body->inverse_inertia_tensor * inv_world;
 }
 

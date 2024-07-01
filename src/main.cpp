@@ -152,7 +152,7 @@ i32 main() {
     platform.force_accum = SDVec3();
     platform.torque_accum = SDVec3();
     platform.linear_damping = 0.8f;
-    platform.angular_damping = 0.000001f;
+    platform.angular_damping = 0.00000001f;
     sd_body_set_mass(&platform, 2);
 
     SDMat3 cube_inertia_tensor = SDMat3(
@@ -173,6 +173,10 @@ i32 main() {
     SDRigidBody anchor1_body = {};
     anchor1_body.position = SDVec3(-4, 15, -10);
     sd_body_calculate_derived_data(&anchor1_body);
+
+    SDRigidBody anchor2_body = {};
+    anchor2_body.position = SDVec3(-12, 15, 10);
+    sd_body_calculate_derived_data(&anchor2_body);
     
     SDSpringForceGenerator spring0_fg{};
     spring0_fg.connection_point = SDVec3(-1, -1, -1);
@@ -188,6 +192,13 @@ i32 main() {
     spring1_fg.spring_constant = 2.0f;
     spring1_fg.rest_length = 2.0f;
 
+    SDSpringForceGenerator spring2_fg{};
+    spring2_fg.connection_point = SDVec3(-1, 1, 1);
+    spring2_fg.other_conection_point = SDVec3(0, -1, 0);
+    spring2_fg.other = &anchor2_body;
+    spring2_fg.spring_constant = 2.0f;
+    spring2_fg.rest_length = 2.0f;
+
 //=============================================================================================
 //=============================================================================================
 
@@ -202,7 +213,7 @@ i32 main() {
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
-#if 0
+#if 1
         f32 elapsed_time = current_time - last_time;
         while(elapsed_time < fps_target) {
             current_time = sd_get_time();
@@ -212,7 +223,7 @@ i32 main() {
 
         f32 dt = (f32)(current_time - last_time);
         
-        //SD_INFO("FPS: %lf", 1.0f/dt);
+        SD_INFO("FPS: %lf", 1.0f/dt);
 
         last_time = current_time;
 
@@ -259,9 +270,9 @@ i32 main() {
             sd_particle_contact_resolver_resolve_contacts(&pcr, contacts, num_contact, dt);
         }
 
-    
         sd_spring_force_generator_update(&spring0_fg, &platform, dt);
         sd_spring_force_generator_update(&spring1_fg, &platform, dt);
+        sd_spring_force_generator_update(&spring2_fg, &platform, dt);
         sd_body_integrate(&platform, dt);
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
@@ -304,9 +315,11 @@ i32 main() {
         sd_set_world_mat(platform.transform_matrix);
         sd_draw_vertex_buffer(cube->vbuffer, 0, 0, 0);
         sd_set_world_mat(anchor0_body.transform_matrix);
-        sd_draw_vertex_buffer(cube->vbuffer, 0, 0, 0);
+        sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
         sd_set_world_mat(anchor1_body.transform_matrix);
-        sd_draw_vertex_buffer(cube->vbuffer, 0, 0, 0);
+        sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
+        sd_set_world_mat(anchor2_body.transform_matrix);
+        sd_draw_vertex_buffer(sphere->vbuffer, 0, 0, 0);
 
         SDVec3 src0 = sd_body_get_point_in_world_space(&anchor0_body, spring0_fg.other_conection_point); 
         SDVec3 dst0 = sd_body_get_point_in_world_space(&platform, spring0_fg.connection_point);
@@ -315,6 +328,10 @@ i32 main() {
         SDVec3 src1 = sd_body_get_point_in_world_space(&anchor1_body, spring1_fg.other_conection_point); 
         SDVec3 dst1 = sd_body_get_point_in_world_space(&platform, spring1_fg.connection_point);
         sd_draw_line(src1, dst1, 0, 1, 0);
+
+        SDVec3 src2 = sd_body_get_point_in_world_space(&anchor2_body, spring2_fg.other_conection_point); 
+        SDVec3 dst2 = sd_body_get_point_in_world_space(&platform, spring2_fg.connection_point);
+        sd_draw_line(src2, dst2, 0, 1, 0);
 
         sd_present();
         sd_store_input_for_next_frame();
