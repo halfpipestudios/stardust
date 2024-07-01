@@ -93,7 +93,7 @@ void sd_init(char *title, u32 width, u32 height) {
 
     sd_window_open(title, width, height);
 
-    BITMAPINFO bitmap_info = {0};
+    BITMAPINFO bitmap_info = {};
     bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
     bitmap_info.bmiHeader.biWidth = window_width;
     bitmap_info.bmiHeader.biHeight = window_height;

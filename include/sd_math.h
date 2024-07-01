@@ -171,7 +171,9 @@ SDMat3 sd_mat3_rotation_x(float angle);
 SDMat3 sd_mat3_rotation_y(float angle);
 SDMat3 sd_mat3_rotation_z(float angle);
 SDMat3 sd_mat3_scale(float x, float y, float z);
+// TODO(manu): fix this function...
 SDMat3 sd_mat3_inverse(const SDMat3& m);
+SDMat3 sd_mat3_transposed(SDMat3 &m);
 
 struct SDMat4
 {
@@ -210,19 +212,21 @@ struct SDMat4
 SDVec3 sd_mat4_get_col_as_vec3(SDMat4& m, int col);
 
 SDMat4 sd_mat4_translation(float x, float y, float z);
+SDMat4 sd_mat4_translation(SDVec3 v);
 SDMat4 sd_mat4_rotation_x(float angle);
 SDMat4 sd_mat4_rotation_y(float angle);
 SDMat4 sd_mat4_rotation_z(float angle);
 SDMat4 sd_mat4_scale(float x, float y, float z);
-
-SDMat4 sd_mat4_translation(SDVec3 v);
 SDMat4 sd_mat4_scale(SDVec3 v);
 
 SDMat4 sd_mat4_lookat(SDVec3 pos, SDVec3 tar, SDVec3 up);
 SDMat4 sd_mat4_frustum(float l, float r, float b, float t, float n, float f);
 SDMat4 sd_mat4_perspective(float fov, float aspect, float znear, float zfar);
 
+// TODO(manu): fix this function...
 SDMat4 sd_mat4_inverse(const SDMat4& m);
+
+SDMat3 sd_mat4_to_mat3(SDMat4 m);
 
 SDVec3 sd_mat4_transform_vector(SDMat4 m, SDVec3 v);
 SDVec3 sd_mat4_transform_point(SDMat4 m, SDVec3 v);
@@ -249,6 +253,10 @@ struct SDQuat {
     SDQuat operator+(const SDQuat &q);
     SDQuat operator*(const SDQuat &q);
     SDVec3 operator*(SDVec3 v);
+    void operator*=(const SDQuat &q);
+    SDQuat operator+(SDVec3 v);
+    void operator+=(SDVec3 v);
+        
 };
 
 void sd_quat_normalize(SDQuat& q);
