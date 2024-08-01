@@ -69,7 +69,7 @@ i32 main() {
 
     sd_set_view_mat(sd_mat4_lookat(SDVec3(0, 5, 10), SDVec3(0, 3, 0), SDVec3(0, 1, 0)));
     sd_set_proj_mat(sd_mat4_perspective(60, (float)sd_window_width()/sd_window_height(), 0.1f, 100.0f));
-    
+
 //=============================================================================================
 // Particle sample
 //=============================================================================================
@@ -139,9 +139,6 @@ i32 main() {
 //=============================================================================================
 // RigidBody Sample
 //=============================================================================================
-
-
-
     SDRigidBody platform;
     platform.position = SDVec3(-12, 10, -5);
     platform.orientation = SDQuat();
@@ -202,6 +199,32 @@ i32 main() {
 //=============================================================================================
 //=============================================================================================
 
+//=============================================================================================
+// BVH Sample
+//=============================================================================================
+SDRigidBody a = {};
+a.position = SDVec3(0, 2, 0);
+SDBoundingSphere a_bs = sd_bounding_sphere_create(a.position, 0.5f);
+
+SDRigidBody b = {};
+b.position = SDVec3(0.5, 2, 0);
+SDBoundingSphere b_bs = sd_bounding_sphere_create(b.position, 0.5f);
+
+SDRigidBody c = {};
+c.position = SDVec3(5, 2, 0);
+SDBoundingSphere c_bs = sd_bounding_sphere_create(c.position, 0.5f);
+
+SDBlockAllocator bvh_allocator = sd_block_allocator_create(sd_memory(), sizeof(SDBVHNode), 100);
+
+SDBVHNode *node = sd_bvh_node_create(&bvh_allocator, 0, a_bs, &a);
+sd_bvh_node_insert(&bvh_allocator, node, &b, &b_bs);
+sd_bvh_node_insert(&bvh_allocator, node, &c, &c_bs);
+
+SDPotentialContact contacts[10] = {};
+u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
+
+//=============================================================================================
+//=============================================================================================
 
 
     Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));

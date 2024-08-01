@@ -13,7 +13,7 @@ build:
 # build the core library
 lib:
 	cl /c \
-	/std:c++17 /W2 /nologo /O2 /Zi /EHsc \
+	/std:c++17 /W2 /nologo /Od /Zi /EHsc \
 	/I../include /I../libs/stb_image /I../libs/assimp/include \
 	.\sd_memory.cpp \
 	.\sd_win32.cpp \

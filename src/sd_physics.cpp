@@ -337,7 +337,7 @@ static u32 particle_plane_y_zero_add_contact(SDParticleContactGenerator *pcg,
     pc->particle[1] = nullptr;
 
     pc->contact_normal = SDVec3(0, 1, 0);
-    pc->penetration =std::fabs(proj_on_y);
+    pc->penetration = std::fabs(proj_on_y);
     pc->restitution = 0;
 
     return 1;
@@ -445,7 +445,6 @@ void sd_body_add_force_at_point(SDRigidBody *body, SDVec3 force, SDVec3 point) {
 }
 
 void sd_body_add_force_at_body_point(SDRigidBody *body, SDVec3 force, SDVec3 point) {
-
     // get the point in world space
     SDMat4 world = sd_mat4_translation(body->position) * sd_quat_to_mat4(body->orientation);
     SDVec3 pt = sd_body_get_point_in_world_space(body, point);
@@ -478,3 +477,213 @@ void sd_spring_force_generator_update(SDSpringForceGenerator *fg, SDRigidBody *b
 //===================================================================
 //===================================================================
 
+
+
+//===================================================================
+// Collision Detection
+//===================================================================
+SDBoundingSphere sd_bounding_sphere_create(SDVec3 center, f32 radius) {
+    SDBoundingSphere bs;
+    bs.center = center;
+    bs.radius = radius;
+    return bs;
+}
+
+SDBoundingSphere sd_bounding_sphere_create(SDBoundingSphere *a, SDBoundingSphere *b) {
+    SDBoundingSphere bs;
+
+    SDVec3 center_offset = b->center - a->center;
+    f32 distance = sd_vec3_len_sq(center_offset);
+    f32 radius_diff = b->radius - a->radius;
+
+    // Check if the larger sphere encloses the small one
+    if(radius_diff*radius_diff >= distance) {
+        if(a->radius > b->radius) {
+            bs.center = a->center;
+            bs.radius = a->radius;
+        }
+        else {
+            bs.center = b->center;
+            bs.radius = b->radius;
+        }
+    }
+    // otherwise we need to work with partialy overlapping spheres
+    else {
+        distance = std::sqrtf(distance);
+        bs.radius = (distance + a->radius + b->radius) * 0.5f;
+        // the new center is base on a's center moved towards b's
+        // center by an amount proportional to the spheres radii
+        bs.center = a->center;
+        if(distance > 0) {
+            bs.center += center_offset * ((bs.radius - a->radius)/distance);
+        }
+    }
+    return bs;
+}
+
+bool sd_bounding_sphere_overlaps(SDBoundingSphere *a, SDBoundingSphere *b) {
+    f32 distance_sq = sd_vec3_len_sq(a->center - b->center);
+    return distance_sq < (a->radius+b->radius)*(a->radius+b->radius);
+}
+
+f32 sd_bounding_sphere_get_growth(SDBoundingSphere *a, SDBoundingSphere *b) {
+    SDBoundingSphere new_sphere = sd_bounding_sphere_create(a, b);
+    // We return a value proportional to the change in surface
+    // area of the sphere.
+    return new_sphere.radius*new_sphere.radius - a->radius*a->radius;
+}
+
+f32 sd_bounding_sphere_get_volume(SDBoundingSphere *bs) {
+    return 1.333333f * SD_PI * bs->radius * bs->radius * bs->radius;
+}
+
+static void recalculate_bounding_volume(SDBVHNode *node, bool recurse = true) {
+    if(sd_bvh_node_is_leaf(node)) {
+        return;
+    }
+
+    // Use the bounding volume combining create function
+    node->volume = sd_bounding_sphere_create(&node->children[0]->volume,
+                                             &node->children[1]->volume);
+    // recurse up the tree
+    if(node->parent) {
+        recalculate_bounding_volume(node->parent, true);
+    }
+}
+
+SDBVHNode *sd_bvh_node_create(SDBlockAllocator *allocator, SDBVHNode *parent, SDBoundingSphere bs, SDRigidBody *body) {
+    SDBVHNode *node = (SDBVHNode *)sd_block_allocator_alloc(allocator);
+    node->parent = parent;
+    node->volume = bs;
+    node->body = body;
+    node->children[0] = node->children[1] = 0;
+    return node;
+}
+
+bool sd_bvh_node_is_leaf(SDBVHNode *node) {
+    return (node->body != 0);
+}
+
+void sd_bvh_node_insert(SDBlockAllocator *allocator, SDBVHNode *node, SDRigidBody *body, SDBoundingSphere *volume) {
+    // if we are a leaf, then the only option is to spawn two
+    // new children and place the new body in one
+    if(sd_bvh_node_is_leaf(node)) {
+        // child one is a copy of us
+        node->children[0] = sd_bvh_node_create(allocator, node, node->volume, node->body);
+        // child two holds the new body
+        node->children[1] = sd_bvh_node_create(allocator, node, *volume, body);
+        // and we now loose the body
+        node->body = 0;
+        recalculate_bounding_volume(node);
+    }
+    // Otherwise we need to work out wich child gets to keep
+    // the inserted body. We give it to whoever would grow the
+    // least to incorporate it
+    else {
+        if(sd_bounding_sphere_get_growth(&node->children[0]->volume, volume) <
+           sd_bounding_sphere_get_growth(&node->children[1]->volume, volume)) {
+            sd_bvh_node_insert(allocator, node->children[0], body, volume);
+        }
+        else {
+            sd_bvh_node_insert(allocator, node->children[1], body, volume);
+        }
+    }
+}
+
+void sd_bvh_node_remove(SDBlockAllocator *allocator, SDBVHNode *node) {
+    // if we dont have a parent, then we ignore the sibling
+    // processing
+    SDBVHNode *parent = node->parent;
+    if(parent) {
+        // find our sibling
+        SDBVHNode *sibling = (parent->children[0] == node) ? parent->children[1] : parent->children[0];
+        // write its data to our parent
+        parent->volume = sibling->volume;
+        parent->body = sibling->body;
+        parent->children[0] = sibling->children[0];
+        parent->children[1] = sibling->children[1];
+
+        sibling->parent = 0;
+        sibling->body = 0;
+        sibling->children[0] = 0;
+        sibling->children[1] = 0;
+        sd_bvh_node_remove(allocator, sibling);
+
+        recalculate_bounding_volume(parent);
+    }
+    // delete our children (again we remove their
+    // parent data so we dont try to process their siblings
+    // as they are deleted)
+    if(node->children[0]) {
+        node->children[0]->parent = 0;
+        sd_bvh_node_remove(allocator, node->children[0]);
+    }
+    if(node->children[1]) {
+        node->children[1]->parent = 0;
+        sd_bvh_node_remove(allocator, node->children[1]);
+    }
+
+    sd_block_allocator_free(allocator, node);
+}
+
+bool sd_bvh_node_overlaps(SDBVHNode *a, SDBVHNode *b) {
+    return sd_bounding_sphere_overlaps(&a->volume, &b->volume);
+}
+
+u32 get_potetial_contacts_with(SDBVHNode *node, SDBVHNode *other, SDPotentialContact *contacts, u32 limit) {
+    // early out of we dont overlap or is we have no more room
+    // to report contacts
+    if(!sd_bvh_node_overlaps(node, other) || limit == 0) {
+        return 0;
+    }
+
+    // if we are both at leaf nodes, then we have a potential contact
+    if(sd_bvh_node_is_leaf(node) && sd_bvh_node_is_leaf(other)) {
+        contacts->body[0] = node->body;
+        contacts->body[1] = other->body;
+        return 1;
+    }
+
+    // Determine which node to descend into. if either
+    // is a leaf, then we descend the other, if both are branches,
+    // the we use the one with the largest size
+    if(sd_bvh_node_is_leaf(other) ||
+       (sd_bvh_node_is_leaf(node) &&
+        sd_bounding_sphere_get_volume(&node->volume) >= sd_bounding_sphere_get_volume(&other->volume))) {
+            // resurse into ourself
+            u32 count = get_potetial_contacts_with(node->children[0], other, contacts, limit);
+            // check we have enough slots to do the other side too
+            if(limit > count) {
+                return count + get_potetial_contacts_with(node->children[1], other, contacts+count, limit-count);
+            }
+            else {
+                return count;
+            }
+       }
+       else {
+            // Recurse into the other node
+            u32 count = get_potetial_contacts_with(node, other->children[0], contacts, limit);
+            // check we have enough slots to do the other side too
+            if(limit > count) {
+                return count + get_potetial_contacts_with(node, other->children[1], contacts+count, limit-count);
+            }
+            else {
+                return count;
+            }
+       }
+}
+
+u32 sd_bvh_node_get_potetial_contacts(SDBVHNode *node, SDPotentialContact *contacts, u32 limit) {
+    // early out if we dont have room for contacts, or
+    // if we are a leaf node
+    if(sd_bvh_node_is_leaf(node) || limit == 0) {
+        return 0;
+    }
+
+    // Get potential contacts of one of our children with
+    // the other
+    return get_potetial_contacts_with(node->children[0], node->children[1], contacts, limit);
+}
+
+//===================================================================
+//===================================================================

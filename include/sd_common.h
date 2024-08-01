@@ -13,8 +13,6 @@ typedef int8_t  i8;
 typedef double f64;
 typedef float  f32;
 
-#define SD_PI 3.14159265359f
-
 #define SD_ASSERT(condition) if(!(condition)) { *(uint32_t *)0 = 0; }
 #define SD_ARRAY_LENGTH(array) ( sizeof(array)/sizeof((array)[0]) )
 

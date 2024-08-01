@@ -5,7 +5,8 @@
 
 #include <sd_common.h>
 
-#define VEC_EPSILON 0.000001f
+#define SD_PI 3.14159265359f
+#define SD_VEC_EPSILON 0.000001f
 
 // TODO: Important unify the use of const ref or the not use of it
 f32 sd_lerp(f32 a, f32 b, f32 t);

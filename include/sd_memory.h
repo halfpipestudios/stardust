@@ -32,3 +32,16 @@ void *sd_arena_push_size(SDArena *arena, u64 size);
 void sd_arena_clear(SDArena *arena);
 SDTempArena sd_temp_arena_begin(SDArena *arena);
 void sd_temp_arena_end(SDTempArena tmp);
+
+// this block allocator work only for 4 bytes plus block size
+struct SDBlockAllocator {
+    SDArena arena;
+    u64 block_size;
+    u32 block_count;
+    u32 block_used;
+    u32 free_list;
+};
+
+SDBlockAllocator sd_block_allocator_create(SDMemory *memory, u64 block_size, u32 block_count);
+void *sd_block_allocator_alloc(SDBlockAllocator *allocator);
+void sd_block_allocator_free(SDBlockAllocator *allocator, void *block);

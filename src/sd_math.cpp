@@ -314,7 +314,7 @@ SDVec3 sd_vec3_lerp(SDVec3 a, SDVec3 b, f32 t) {
 f32 sd_vec3_angle(SDVec3 a, SDVec3 b) {
     f32 a_len_sq = sd_vec3_len_sq(a);
     f32 b_len_sq = sd_vec3_len_sq(b);
-    if(a_len_sq < VEC_EPSILON || b_len_sq < VEC_EPSILON) {
+    if(a_len_sq < SD_VEC_EPSILON || b_len_sq < SD_VEC_EPSILON) {
         return 0.0f;
     }
 

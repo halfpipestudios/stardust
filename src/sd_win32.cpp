@@ -109,6 +109,7 @@ void sd_init(char *title, u32 width, u32 height) {
 
 
     // allocate memory for the entire project
+    // TODO: pass this to the user side
     memory.size = SD_GB(1);
     memory.used = 0;
     memory.data = (u8 *)malloc(memory.size);

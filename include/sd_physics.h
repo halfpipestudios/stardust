@@ -3,6 +3,7 @@
 #include <sd_math.h>
 
 struct SDArena;
+struct SDBlockAllocator;
 //===================================================================
 // Particle Physics
 //===================================================================
@@ -187,5 +188,42 @@ struct SDSpringForceGenerator {
 
 void sd_spring_force_generator_update(SDSpringForceGenerator *fg, SDRigidBody *body, f32 dt);
 
+//===================================================================
+//===================================================================
+
+
+//===================================================================
+// Collision Detection
+//===================================================================
+
+struct SDBoundingSphere {
+    SDVec3 center;
+    f32 radius;
+};
+
+SDBoundingSphere sd_bounding_sphere_create(SDVec3 center, f32 radius);
+SDBoundingSphere sd_bounding_sphere_create(SDBoundingSphere *a, SDBoundingSphere *b);
+
+bool sd_bounding_sphere_overlaps(SDBoundingSphere *a, SDBoundingSphere *b);
+f32 sd_bounding_sphere_get_growth(SDBoundingSphere *a, SDBoundingSphere *b);
+f32 sd_bounding_sphere_get_volume(SDBoundingSphere *bs);
+
+struct SDPotentialContact {
+    SDRigidBody* body[2];
+};
+
+struct SDBVHNode {
+    SDBVHNode *children[2];
+    SDBoundingSphere volume; // use template for this
+    SDRigidBody *body;
+    SDBVHNode *parent;
+};
+
+SDBVHNode *sd_bvh_node_create(SDBlockAllocator *allocator, SDBVHNode *parent, SDBoundingSphere bs, SDRigidBody *body = 0);
+bool sd_bvh_node_is_leaf(SDBVHNode *node);
+u32 sd_bvh_node_get_potetial_contacts(SDBVHNode *node, SDPotentialContact *contacts, u32 limit);
+void sd_bvh_node_insert(SDBlockAllocator *allocator, SDBVHNode *node, SDRigidBody *body, SDBoundingSphere *volume);
+void sd_bvh_node_remove(SDBlockAllocator *allocator, SDBVHNode *node);
+bool sd_bvh_node_overlaps(SDBVHNode *a, SDBVHNode *b);
 //===================================================================
 //===================================================================
