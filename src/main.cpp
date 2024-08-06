@@ -275,7 +275,7 @@ i32 main() {
 
         f32 dt = (f32)(current_time - last_time);
         
-        //SD_INFO("FPS: %lf", 1.0f/dt);
+        SD_INFO("FPS: %lf", 1.0f/dt);
 
         last_time = current_time;
 
@@ -338,6 +338,8 @@ i32 main() {
         if(u32 collision_count = collision_detector_box_plane(&box, &plane, &collision_data)) {
             SD_INFO("Collision found: count %d\n", collision_count);
         }
+        // TODO: collision resolution ...
+
 
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
