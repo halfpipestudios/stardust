@@ -519,7 +519,7 @@ SDMat3 sd_mat3_inverse(const SDMat3& m) {
 
     return SDMat3(r0.x * inv_det, r0.y * inv_det, r0.z * inv_det,
                   r1.x * inv_det, r1.y * inv_det, r1.z * inv_det,
-                  r2.x * inv_det, r2.y * inv_det, r2.z * inv_det); 
+                  r2.x * inv_det, r2.y * inv_det, r2.z * inv_det);
 }
 
 
@@ -535,6 +535,25 @@ SDMat3 sd_mat3_transposed(SDMat3 &m) {
     result.m[2][1] = m.m[1][2];
     result.m[2][2] = m.m[2][2];
     return result;
+}
+
+SDMat3 sd_mat3_orthonormal_basis(SDVec3 x) {
+
+    SDVec3 y = SDVec3(0, 1, 0);
+    if(std::fabsf(x.x) <= std::fabsf(x.y)) {
+        y = SDVec3(1, 0, 0);
+    }
+
+    sd_vec3_normalize(x);
+    SDVec3 z = sd_vec3_cross(x, y);
+    sd_vec3_normalize(z);
+    y = sd_vec3_cross(z, x);
+
+    // TODO: check if this is ok or should it be transposed
+    return SDMat3(x.x, y.x, z.x,
+                  x.y, y.y, z.y,
+                  x.z, y.z, z.z);
+
 }
 
 

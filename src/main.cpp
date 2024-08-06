@@ -229,10 +229,10 @@ i32 main() {
 // Collision Detection Test
 //=============================================================================================
     SDRigidBody crate;
-    crate.position = SDVec3(0, 20, -20);
-    crate.orientation = SDQuat();
+    crate.position = SDVec3(20, 20, -20);
+    crate.orientation = sd_quat_angle_axis(SD_PI/4, SDVec3(0, 1, 0));
     crate.velocity = SDVec3();
-    crate.rotation = SDVec3();
+    crate.rotation = SDVec3(0, 0, 0);
     crate.acceleration = SDVec3(0, -9.8f*2.0f, 0);
     crate.last_frame_acceleration = platform.acceleration;
     crate.force_accum = SDVec3();
@@ -246,12 +246,16 @@ i32 main() {
 
     SDBox box;
     box.body = &crate;
-    box.half_size = SDVec3(0.5f, 0.5f, 0.5f);
+    box.half_size = SDVec3(1, 1, 1);
     box.transform = SDMat4();
 
-    SDPlane plane;
-    plane.normal = SDVec3(0, 1, 0);
-    plane.offset = 0.0f;
+    SDPlane plane0;
+    plane0.normal = sd_mat3_rotation_z(0.5f) * SDVec3(0, 1, 0);
+    plane0.offset = 0.0f;
+
+    SDPlane plane1;
+    plane1.normal = sd_mat3_rotation_z(-0.5f) * SDVec3(0, 1, 0);
+    plane1.offset = 0.0f;
 
 //=============================================================================================
 //=============================================================================================
@@ -259,13 +263,13 @@ i32 main() {
     Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));
     camera.rot.x = -SD_PI/6;
 
-    f32 fps_target = 1.0f / 60.0f;
+    f32 fps_target = 1.0f / 30.0f;
 
     f64 last_time = sd_get_time();
     while(sd_should_close() == false) {
 
         f64 current_time = sd_get_time();
-#if 1
+#if 0
         f32 elapsed_time = current_time - last_time;
         while(elapsed_time < fps_target) {
             current_time = sd_get_time();
@@ -330,17 +334,20 @@ i32 main() {
         sd_body_integrate(&crate, dt);
 
         // crate collision test
+        SDCollisionResolver cr;
+
+
         SDContact body_contacts[100];
+        memset(body_contacts, 0, sizeof(SDContact) * SD_ARRAY_LENGTH(body_contacts));
         SDCollisionData collision_data{};
-        collision_data.contacts = body_contacts;
+        collision_data.contact_array = body_contacts;
         collision_data.contacts_left = 100;
-
-        if(u32 collision_count = collision_detector_box_plane(&box, &plane, &collision_data)) {
-            SD_INFO("Collision found: count %d\n", collision_count);
+        collision_data.contact_count = 0;
+        collision_detector_box_plane(&box, &plane1, &collision_data);
+        collision_detector_box_plane(&box, &plane0, &collision_data);
+        if(collision_data.contact_count > 0) {
+            collision_resolver(&cr, collision_data.contact_array, collision_data.contact_count, dt);
         }
-        // TODO: collision resolution ...
-
-
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
 
@@ -374,6 +381,13 @@ i32 main() {
         sd_set_texture(sphere_tex);
         sd_set_world_mat(sd_mat4_translation(0, 0, 0) * sd_mat4_scale(10, 1, 10));
         sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
+
+        sd_set_texture(sphere_tex);
+        sd_set_world_mat(sd_mat4_rotation_z(0.5f) * sd_mat4_scale(10, 1, 10));
+        sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
+        sd_set_world_mat(sd_mat4_rotation_z(-0.5f) * sd_mat4_scale(10, 1, 10));
+        sd_draw_vertex_buffer(floor->vbuffer, 0, 0, 0);
+
 
         sd_draw_line(anchor, ball.position, 0, 1, 0);
         sd_draw_line(anchor1, ball.position, 0, 1, 0);

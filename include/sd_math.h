@@ -176,6 +176,8 @@ SDMat3 sd_mat3_scale(float x, float y, float z);
 SDMat3 sd_mat3_inverse(const SDMat3& m);
 SDMat3 sd_mat3_transposed(SDMat3 &m);
 
+SDMat3 sd_mat3_orthonormal_basis(SDVec3 x);
+
 struct SDMat4
 {
     float m[4][4];
