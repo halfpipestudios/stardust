@@ -6,11 +6,11 @@ static void *LoadImage(SDArena *arena, const char *path, int32_t& outWidth, int3
     u32 *pixels = (u32 *)data;
     u32 *result = (u32 *)sd_arena_push_size(arena, outWidth * outHeight * sizeof(u32));
     for(i32 i = 0; i < outWidth * outHeight; i++) {
-        u32 color = pixels[i];
-        u8 a = (u8)(color >> 24);
-        u8 b = (u8)(color >> 16);
-        u8 g = (u8)(color >> 8);
-        u8 r = (u8)(color >> 0);
+        u32 color_debug = pixels[i];
+        u8 a = (u8)(color_debug >> 24);
+        u8 b = (u8)(color_debug >> 16);
+        u8 g = (u8)(color_debug >> 8);
+        u8 r = (u8)(color_debug >> 0);
         result[i] = (a << 24) | (r << 16) | (g << 8) | b;
     }
 
@@ -315,7 +315,7 @@ static void triangle_proj_and_razterization(SDVertex *vertices, Vec4 *transformV
                         __m256i u = _mm256_cvtps_epi32(_mm256_mul_ps(int_u, texture_w));
                         __m256i v = _mm256_cvtps_epi32(_mm256_mul_ps(int_v, texture_h));
 
-                        __m256i color;
+                        __m256i color  = {};
                         for(i32 j = 0; j < 8; ++j) {
                             i32 textureX = Mi(u, j);
                             i32 textureY = Mi(v, j);

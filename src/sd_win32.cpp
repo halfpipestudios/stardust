@@ -206,7 +206,7 @@ void sd_sleep(f32 milisecons_to_sleep) {
 void sd_log_message(SDLogType type, const char *message, ...) {
     char buffer[32000];
     uint32_t log_header_length = 14;
-    char *log_header[] = {
+    const char *log_header[] = {
         "[SD_FATAL]:   ",
         "[SD_ERROR]:   ",
         "[SD_WARNING]: ",

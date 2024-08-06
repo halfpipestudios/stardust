@@ -1,6 +1,7 @@
 #include <sd_physics.h>
 #include <sd_memory.h>
 
+
 //===================================================================
 // Particle Physics
 //===================================================================
@@ -38,7 +39,8 @@ void sd_particle_add_force(SDParticle *p, SDVec3 &force) {
 
 void sd_particle_gravity_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt) {
     if(p->inv_mass <= 0.0f) return;
-    sd_particle_add_force(p, fg->gravity.gravity * sd_particle_get_mass(p));
+    SDVec3 force = fg->gravity.gravity * sd_particle_get_mass(p);
+    sd_particle_add_force(p, force);
 }
 
 void sd_particle_drag_update(SDParticleForceGenerator *fg, SDParticle *p, f32 dt) {
@@ -369,7 +371,7 @@ static void sd_body_calculate_transform_matrix(SDRigidBody *body) {
 
 static void sd_body_transform_inertia_tensor(SDRigidBody *body) {
     SDMat3 world = sd_mat4_to_mat3(body->transform_matrix);
-    SDMat3 inv_world = sd_mat3_transposed(world);
+    SDMat3 inv_world = sd_mat3_transposed(world); // this only work is there is no scaling in this transformation
     //SDMat3 inv_world = sd_mat3_inverse(world);
     body->inverse_inertia_tensor_world = world * body->inverse_inertia_tensor * inv_world;
 }

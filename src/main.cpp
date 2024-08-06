@@ -1,6 +1,5 @@
 #include <stardust.h>
 
-
 struct Camera {
     SDVec3 pos;
     SDVec2 rot;
@@ -202,30 +201,60 @@ i32 main() {
 //=============================================================================================
 // BVH Sample
 //=============================================================================================
-SDRigidBody a = {};
-a.position = SDVec3(0, 2, 0);
-SDBoundingSphere a_bs = sd_bounding_sphere_create(a.position, 0.5f);
+    SDRigidBody a = {};
+    a.position = SDVec3(0, 2, 0);
+    SDBoundingSphere a_bs = sd_bounding_sphere_create(a.position, 0.5f);
 
-SDRigidBody b = {};
-b.position = SDVec3(0.5, 2, 0);
-SDBoundingSphere b_bs = sd_bounding_sphere_create(b.position, 0.5f);
+    SDRigidBody b = {};
+    b.position = SDVec3(0.5, 2, 0);
+    SDBoundingSphere b_bs = sd_bounding_sphere_create(b.position, 0.5f);
 
-SDRigidBody c = {};
-c.position = SDVec3(5, 2, 0);
-SDBoundingSphere c_bs = sd_bounding_sphere_create(c.position, 0.5f);
+    SDRigidBody c = {};
+    c.position = SDVec3(5, 2, 0);
+    SDBoundingSphere c_bs = sd_bounding_sphere_create(c.position, 0.5f);
 
-SDBlockAllocator bvh_allocator = sd_block_allocator_create(sd_memory(), sizeof(SDBVHNode), 100);
+    SDBlockAllocator bvh_allocator = sd_block_allocator_create(sd_memory(), sizeof(SDBVHNode), 100);
 
-SDBVHNode *node = sd_bvh_node_create(&bvh_allocator, 0, a_bs, &a);
-sd_bvh_node_insert(&bvh_allocator, node, &b, &b_bs);
-sd_bvh_node_insert(&bvh_allocator, node, &c, &c_bs);
+    SDBVHNode *node = sd_bvh_node_create(&bvh_allocator, 0, a_bs, &a);
+    sd_bvh_node_insert(&bvh_allocator, node, &b, &b_bs);
+    sd_bvh_node_insert(&bvh_allocator, node, &c, &c_bs);
 
-SDPotentialContact contacts[10] = {};
-u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
+    SDPotentialContact contacts[10] = {};
+    u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
 
 //=============================================================================================
 //=============================================================================================
 
+//=============================================================================================
+// Collision Detection Test
+//=============================================================================================
+    SDRigidBody crate;
+    crate.position = SDVec3(0, 20, -20);
+    crate.orientation = SDQuat();
+    crate.velocity = SDVec3();
+    crate.rotation = SDVec3();
+    crate.acceleration = SDVec3(0, -9.8f*2.0f, 0);
+    crate.last_frame_acceleration = platform.acceleration;
+    crate.force_accum = SDVec3();
+    crate.torque_accum = SDVec3();
+    crate.linear_damping = 0.8f;
+    crate.angular_damping = 0.00000001f;
+    sd_body_set_mass(&crate, 2);
+    crate.inverse_inertia_tensor = sd_mat3_inverse(cube_inertia_tensor);
+    crate.is_awake = true;
+    sd_body_calculate_derived_data(&crate);
+
+    SDBox box;
+    box.body = &crate;
+    box.half_size = SDVec3(0.5f, 0.5f, 0.5f);
+    box.transform = SDMat4();
+
+    SDPlane plane;
+    plane.normal = SDVec3(0, 1, 0);
+    plane.offset = 0.0f;
+
+//=============================================================================================
+//=============================================================================================
 
     Camera camera = camera_create(hero.position + SDVec3(0, 3, 0));
     camera.rot.x = -SD_PI/6;
@@ -246,7 +275,7 @@ u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
 
         f32 dt = (f32)(current_time - last_time);
         
-        SD_INFO("FPS: %lf", 1.0f/dt);
+        //SD_INFO("FPS: %lf", 1.0f/dt);
 
         last_time = current_time;
 
@@ -297,6 +326,19 @@ u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
         sd_spring_force_generator_update(&spring1_fg, &platform, dt);
         sd_spring_force_generator_update(&spring2_fg, &platform, dt);
         sd_body_integrate(&platform, dt);
+
+        sd_body_integrate(&crate, dt);
+
+        // crate collision test
+        SDContact body_contacts[100];
+        SDCollisionData collision_data{};
+        collision_data.contacts = body_contacts;
+        collision_data.contacts_left = 100;
+
+        if(u32 collision_count = collision_detector_box_plane(&box, &plane, &collision_data)) {
+            SD_INFO("Collision found: count %d\n", collision_count);
+        }
+
 
         f32 speed = SD_MIN(sd_vec3_len(hero.velocity), 1.0f);
 
@@ -355,6 +397,12 @@ u32 count = sd_bvh_node_get_potetial_contacts(node, contacts, 10);
         SDVec3 src2 = sd_body_get_point_in_world_space(&anchor2_body, spring2_fg.other_conection_point); 
         SDVec3 dst2 = sd_body_get_point_in_world_space(&platform, spring2_fg.connection_point);
         sd_draw_line(src2, dst2, 0, 1, 0);
+
+
+        sd_set_texture(floor_tex);
+        sd_set_world_mat(crate.transform_matrix);
+        sd_draw_vertex_buffer(cube->vbuffer, 0, 0, 0);
+
 
         sd_present();
         sd_store_input_for_next_frame();

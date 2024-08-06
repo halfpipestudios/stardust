@@ -23,6 +23,7 @@ lib:
 	.\sd_mesh.cpp \
 	.\sd_animation.cpp \
 	.\sd_physics.cpp \
+	.\sd_collision.cpp \
 	/Fo../bin/ /Fm../bin/
 	
 	lib \
@@ -35,6 +36,7 @@ lib:
 	../bin/sd_mesh.obj \
 	../bin/sd_animation.obj \
 	../bin/sd_physics.obj \
+	../bin/sd_collision.obj \
 	../libs/assimp/bin/assimp-vc143-mt.lib
 	
 	  

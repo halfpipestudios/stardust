@@ -30,15 +30,15 @@ void sd_clear_back_buffer(f32 r_, f32 g_, f32 b_) {
     }
 }
 
-void sd_set_world_mat(SDMat4 &world_) {
+void sd_set_world_mat(const SDMat4 &world_) {
     world = world_;
 }
 
-void sd_set_view_mat(SDMat4 &view_) {
+void sd_set_view_mat(const SDMat4 &view_) {
     view = view_;
 }
 
-void sd_set_proj_mat(SDMat4 &proj_) {
+void sd_set_proj_mat(const SDMat4 &proj_) {
     proj = proj_;
 }
 

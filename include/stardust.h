@@ -8,3 +8,4 @@
 #include <sd_mesh.h>
 #include <sd_animation.h>
 #include <sd_physics.h>
+#include <sd_collision.h>
