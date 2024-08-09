@@ -122,7 +122,8 @@ void sd_init(char *title, u32 width, u32 height) {
 
 void sd_shutdown() {
     DeleteObject(back_buffer_handle);
-    if(depth_buffer) free(depth_buffer);
+    // TODO: check we this is wrong here ...
+    //if(depth_buffer) free(depth_buffer);
     if(memory.data) free(memory.data);
     back_buffer = nullptr;
     depth_buffer = nullptr;

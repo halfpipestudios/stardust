@@ -161,6 +161,7 @@ struct SDRigidBody {
 
     // derived data
     SDMat4 transform_matrix;
+    SDMat3 inertia_tensor;
     SDMat3 inverse_inertia_tensor;
     SDMat3 inverse_inertia_tensor_world;
 

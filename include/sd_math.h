@@ -166,6 +166,9 @@ struct SDMat3
 
     SDMat3 operator*(const SDMat3& rhs);
     SDVec3 operator*(const SDVec3& rhs);
+    SDMat3 operator*(f32 scalar);
+
+    SDMat3 operator+(const SDMat3& rhs);
 };
 
 SDMat3 sd_mat3_rotation_x(float angle);
@@ -177,6 +180,7 @@ SDMat3 sd_mat3_inverse(const SDMat3& m);
 SDMat3 sd_mat3_transposed(SDMat3 &m);
 
 SDMat3 sd_mat3_orthonormal_basis(SDVec3 x);
+SDMat3 sd_mat3_skew_symmetric(SDVec3 v);
 
 struct SDMat4
 {
@@ -240,6 +244,9 @@ struct SDQuat {
             f32 w, x, y, z;
         };
         struct {
+            f32 r, i, j, k;
+        };
+        struct {
             f32 scalar;
             SDVec3 vector;
         };
@@ -257,9 +264,6 @@ struct SDQuat {
     SDQuat operator*(const SDQuat &q);
     SDVec3 operator*(SDVec3 v);
     void operator*=(const SDQuat &q);
-    SDQuat operator+(SDVec3 v);
-    void operator+=(SDVec3 v);
-        
 };
 
 void sd_quat_normalize(SDQuat& q);
@@ -267,3 +271,5 @@ SDQuat sd_quat_normalized(const SDQuat& q);
 SDMat4 sd_quat_to_mat4(const SDQuat& q);
 SDQuat sd_quat_slerp(SDQuat a, SDQuat b, f32 t);
 SDQuat sd_quat_angle_axis(f32 angle, const SDVec3 &axis);
+void sd_quat_add_scale_vec3(SDQuat &q, SDVec3 v, f32 scale);
+

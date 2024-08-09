@@ -371,8 +371,7 @@ static void sd_body_calculate_transform_matrix(SDRigidBody *body) {
 
 static void sd_body_transform_inertia_tensor(SDRigidBody *body) {
     SDMat3 world = sd_mat4_to_mat3(body->transform_matrix);
-    SDMat3 inv_world = sd_mat3_transposed(world); // this only work is there is no scaling in this transformation
-    //SDMat3 inv_world = sd_mat3_inverse(world);
+    SDMat3 inv_world = sd_mat3_inverse(world);
     body->inverse_inertia_tensor_world = world * body->inverse_inertia_tensor * inv_world;
 }
 
@@ -424,7 +423,8 @@ void sd_body_integrate(SDRigidBody *body, f32 dt) {
     // adjust positions
     // update linear position
     body->position += body->velocity * dt;
-    body->orientation += body->rotation * dt;
+    sd_quat_add_scale_vec3(body->orientation, body->rotation, dt);
+
 
     // normalize the orientation, and update the matrices
     // with the new position and orientation
@@ -440,9 +440,14 @@ void sd_body_add_force(SDRigidBody *body, SDVec3 force) {
 
 void sd_body_add_force_at_point(SDRigidBody *body, SDVec3 force, SDVec3 point) {
     // converto to coords relative to the center of mass
-    SDVec3 pt = point - body->position;
+    //SDVec3 pt = point - body->position;
+    //pt = body->orientation * pt;
     body->force_accum += force;
-    body->torque_accum += sd_vec3_cross(pt, force);
+    SDMat4 world = sd_mat4_translation(body->position) * sd_quat_to_mat4(body->orientation);
+    SDMat4 inv_world = sd_mat4_inverse(world);
+    SDVec3 local_point = sd_mat4_transform_point(inv_world, point);
+    SDVec3 local_force = sd_mat4_transform_vector(inv_world, force);
+    body->torque_accum += sd_vec3_cross(local_point, local_force);
     body->is_awake = true;
 }
 
@@ -458,6 +463,12 @@ void sd_body_add_force_at_body_point(SDRigidBody *body, SDVec3 force, SDVec3 poi
 SDVec3 sd_body_get_point_in_world_space(SDRigidBody *body, SDVec3 point) {
     SDMat4 world = sd_mat4_translation(body->position) * sd_quat_to_mat4(body->orientation);
     return sd_mat4_transform_point(world, point);
+}
+
+SDVec3 sd_body_get_point_in_local_space(SDRigidBody *body, SDVec3 point) {
+    SDMat4 world = sd_mat4_translation(body->position) * sd_quat_to_mat4(body->orientation);
+    SDMat4 inv_world = sd_mat4_inverse(world);
+    return sd_mat4_transform_point(inv_world, point);
 }
 
 void sd_spring_force_generator_update(SDSpringForceGenerator *fg, SDRigidBody *body, f32 dt) {

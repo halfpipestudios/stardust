@@ -24,6 +24,8 @@ struct SDContact {
     // holds the world space position of the contact point relative to
     // center of each body. this is set before the resolution algorithm
     SDVec3 relative_contact_position[2];
+
+    f32 friction{0.5f};
 };
 
 struct SDCollisionData {
@@ -53,14 +55,15 @@ struct SDBox : public SDPrimitive {
 
 
 struct SDCollisionResolver {
-    u32 velocity_iterations {4};
-    u32 position_iterations {4};
+    u32 velocity_iterations {2048};
+    u32 position_iterations {2048};
     f32 velocity_epsilon {0.01f}; // 0.01
     f32 position_epsilon {0.01f}; // 0.01
     u32 velocity_iterations_used {0};
     u32 position_iterations_used {0};
 };
 
-void collision_detector_box_plane(SDBox *box, SDPlane *plane, SDCollisionData *data);
+void sd_collision_detector_sphere_plane(SDSphere *sphere, SDPlane *plane, SDCollisionData *data);
+void sd_collision_detector_box_plane(SDBox *box, SDPlane *plane, SDCollisionData *data);
 
-void collision_resolver(SDCollisionResolver *cr, SDContact *contacts, u32 contacts_count, f32 duration);
+void sd_collision_resolver(SDCollisionResolver *cr, SDContact *contacts, u32 contacts_count, f32 duration);

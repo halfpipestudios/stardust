@@ -1,4 +1,5 @@
 #include <sd_math.h>
+#include <sd_platform.h>
 
 f32 sd_lerp(f32 a, f32 b, f32 t) {
     return (1.0f - t) * a + b * t;
@@ -274,7 +275,7 @@ float sd_vec3_len_sq(const SDVec3& v)
 
 float sd_vec3_len(const SDVec3& v)
 {
-    return std::sqrt(sd_vec3_len_sq(v));
+    return std::sqrtf(sd_vec3_len_sq(v));
 }
 
 SDVec3 sd_vec3_normalized(const SDVec3& v)
@@ -461,10 +462,39 @@ SDMat3 SDMat3::operator*(const SDMat3& rhs)
 SDVec3 SDMat3::operator*(const SDVec3& rhs)
 {
     SDVec3 result = SDVec3((*this)(0,0)*rhs.x + (*this)(0,1)*rhs.y + (*this)(0,2)*rhs.z,
-                       (*this)(1,0)*rhs.x + (*this)(1,1)*rhs.y + (*this)(1,2)*rhs.z,
-                       (*this)(2,0)*rhs.x + (*this)(2,1)*rhs.y + (*this)(2,2)*rhs.z);
+                           (*this)(1,0)*rhs.x + (*this)(1,1)*rhs.y + (*this)(1,2)*rhs.z,
+                           (*this)(2,0)*rhs.x + (*this)(2,1)*rhs.y + (*this)(2,2)*rhs.z);
     return result;
 }
+
+SDMat3 SDMat3::operator*(f32 scalar) {
+    SDMat3 result;
+    result.m[0][0] = m[0][0] * scalar;
+    result.m[0][1] = m[0][1] * scalar;
+    result.m[0][2] = m[0][2] * scalar;
+    result.m[1][0] = m[1][0] * scalar;
+    result.m[1][1] = m[1][1] * scalar;
+    result.m[1][2] = m[1][2] * scalar;
+    result.m[2][0] = m[2][0] * scalar;
+    result.m[2][1] = m[2][1] * scalar;
+    result.m[2][2] = m[2][2] * scalar;
+    return result;
+}
+
+SDMat3 SDMat3::operator+(const SDMat3& rhs) {
+    SDMat3 result;
+    result.m[0][0] = m[0][0] + rhs.m[0][0];
+    result.m[0][1] = m[0][1] + rhs.m[0][1];
+    result.m[0][2] = m[0][2] + rhs.m[0][2];
+    result.m[1][0] = m[1][0] + rhs.m[1][0];
+    result.m[1][1] = m[1][1] + rhs.m[1][1];
+    result.m[1][2] = m[1][2] + rhs.m[1][2];
+    result.m[2][0] = m[2][0] + rhs.m[2][0];
+    result.m[2][1] = m[2][1] + rhs.m[2][1];
+    result.m[2][2] = m[2][2] + rhs.m[2][2];
+    return result;
+}
+
 
 SDMat3 sd_mat3_rotation_x(float angle)
 {
@@ -538,7 +568,7 @@ SDMat3 sd_mat3_transposed(SDMat3 &m) {
 }
 
 SDMat3 sd_mat3_orthonormal_basis(SDVec3 x) {
-
+#if 0
     SDVec3 y = SDVec3(0, 1, 0);
     if(std::fabsf(x.x) <= std::fabsf(x.y)) {
         y = SDVec3(1, 0, 0);
@@ -548,14 +578,69 @@ SDMat3 sd_mat3_orthonormal_basis(SDVec3 x) {
     SDVec3 z = sd_vec3_cross(x, y);
     sd_vec3_normalize(z);
     y = sd_vec3_cross(z, x);
+#else
 
-    // TODO: check if this is ok or should it be transposed
+    SDVec3 y, z;
+
+    // Check whether the Z-axis is nearer to the X or Y axis
+    if (fabsf(x.x) > fabsf(x.y))
+    {
+        // Scaling factor to ensure the results are normalised
+        const f32 s = (f32)1.0f/sqrtf(x.z*x.z + x.x*x.x);
+
+        // The new X-axis is at right angles to the world Y-axis
+        y.x = x.z*s;
+        y.y = 0;
+        y.z = -x.x*s;
+
+        // The new Y-axis is at right angles to the new X- and Z- axes
+        z.x = x.y*y.x;
+        z.y = x.z*y.x -
+            x.x*y.z;
+        z.z = -x.y*y.x;
+    }
+    else
+    {
+        // Scaling factor to ensure the results are normalised
+        const f32 s = (f32)1.0/sqrtf(x.z*x.z + x.y*x.y);
+
+        // The new X-axis is at right angles to the world X-axis
+        y.x = 0;
+        y.y = -x.z*s;
+        y.z = x.y*s;
+
+        // The new Y-axis is at right angles to the new X- and Z- axes
+        z.x = x.y*y.z -
+            x.z*y.y;
+        z.y = -x.x*y.z;
+        z.z = x.x*y.y;
+    }
+
+
+
+#endif
+
     return SDMat3(x.x, y.x, z.x,
                   x.y, y.y, z.y,
                   x.z, y.z, z.z);
-
 }
 
+
+SDMat3 sd_mat3_skew_symmetric(SDVec3 v) {
+    SDMat3 m;
+    m.m[0][0] = m.m[1][1] = m.m[2][2] = 0;
+
+    m.m[1][0] = -v.z;
+    m.m[2][0] = v.y;
+
+    m.m[0][1] = v.z;
+    m.m[2][1] = -v.x;
+
+    m.m[0][2] = -v.y;
+    m.m[1][2] = v.x;
+
+    return m;
+}
 
 //==================================================================
 // Matrix 4
@@ -837,34 +922,25 @@ SDQuat SDQuat::operator*(const SDQuat &q) {
     return result;
 }
 
-void SDQuat::operator*=(const SDQuat &q) {
-	SDQuat result = SDQuat(
-		-q.x * x - q.y * y - q.z * z + q.w * w,
-         q.x * w + q.y * z - q.z * y + q.w * x,
-		-q.x * z + q.y * w + q.z * x + q.w * y,
-	     q.x * y - q.y * x + q.z * w + q.w * z
-	);
-    (*this) = result;
+void SDQuat::operator*=(const SDQuat &multiplier) {
+    SDQuat q = *this;
+    r = q.r*multiplier.r - q.i*multiplier.i -
+        q.j*multiplier.j - q.k*multiplier.k;
+    i = q.r*multiplier.i + q.i*multiplier.r +
+        q.j*multiplier.k - q.k*multiplier.j;
+    j = q.r*multiplier.j + q.j*multiplier.r +
+        q.k*multiplier.i - q.i*multiplier.k;
+    k = q.r*multiplier.k + q.k*multiplier.r +
+        q.i*multiplier.j - q.j*multiplier.i;
 }
 
-SDQuat SDQuat::operator+(SDVec3 v) {
-    SDQuat q = SDQuat(0, v.x, v.y, v.z);
-    q *= *this;
-    SDQuat result;
-    result.w = w + q.w * 0.5f;
-    result.x = x + q.x * 0.5f;
-    result.y = y + q.y * 0.5f;
-    result.z = z + q.z * 0.5f;
-    return result;
-}
-
-void SDQuat::operator+=(SDVec3 v) {
-    SDQuat q = SDQuat(0, v.x, v.y, v.z);
-    q *= *this;
-    w += q.w * 0.5f;
-    x += q.x * 0.5f;
-    y += q.y * 0.5f;
-    z += q.z * 0.5f;   
+void sd_quat_add_scale_vec3(SDQuat &this_, SDVec3 v, f32 scale) {
+    SDQuat q = SDQuat(0, v.x * scale, v.y * scale, v.z * scale);
+    q *= this_;
+    this_.r += (q.r * 0.5f);
+    this_.i += (q.i * 0.5f);
+    this_.j += (q.j * 0.5f);
+    this_.k += (q.k * 0.5f);
 }
 
 SDVec3 SDQuat::operator*(SDVec3 v) {
@@ -898,11 +974,12 @@ SDQuat sd_quat_normalized(const SDQuat& q) {
         };
         return result;
     }
+    SD_FATAL("Error normalizing the quaternion");
     return q;
 }
 SDMat4 sd_quat_to_mat4(const SDQuat& q) {
     SDMat4 result;
-
+#if 0
     result.m[0][0] = 1 - 2*q.y*q.y - 2*q.z*q.z;
     result.m[1][0] = 2 * (q.x*q.y - q.w*q.z);
     result.m[2][0] = 2 * (q.x*q.z + q.w*q.y);
@@ -917,10 +994,25 @@ SDMat4 sd_quat_to_mat4(const SDQuat& q) {
     result.m[1][2]  = 2 * (q.y*q.z + q.w*q.x);
     result.m[2][2] = 1 - 2*q.x*q.x - 2*q.y*q.y;
     result.m[3][2] = 0;
-
+#else
+    result.m[0][0] = 1 - (2*q.j*q.j + 2*q.k*q.k);
+    result.m[0][1] = 2*q.i*q.j + 2*q.k*q.r;
+    result.m[0][2] = 2*q.i*q.k - 2*q.j*q.r;
     result.m[0][3] = 0;
+
+    result.m[1][0] = 2*q.i*q.j - 2*q.k*q.r;
+    result.m[1][1] = 1 - (2*q.i*q.i + 2*q.k*q.k);
+    result.m[1][2] = 2*q.j*q.k + 2*q.i*q.r;
     result.m[1][3] = 0;
+
+    result.m[2][0] = 2*q.i*q.k + 2*q.j*q.r;
+    result.m[2][1] = 2*q.j*q.k - 2*q.i*q.r;
+    result.m[2][2] = 1 - (2*q.i*q.i + 2*q.j*q.j);
     result.m[2][3] = 0;
+#endif
+    result.m[3][0] = 0;
+    result.m[3][1] = 0;
+    result.m[3][2] = 0;
     result.m[3][3] = 1;
 
     return result;
